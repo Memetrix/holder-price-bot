@@ -17,16 +17,28 @@ if not BOT_TOKEN:
 # Price monitoring settings
 CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', '60'))  # Check every 60 seconds
 ALERT_THRESHOLD = float(os.getenv('ALERT_THRESHOLD', '5.0'))  # Alert on 5% change
+ARB_THRESHOLD = float(os.getenv('ARB_THRESHOLD', '2.0'))  # Arbitrage alert threshold
+
+# Database
+DATABASE_PATH = os.getenv('DATABASE_PATH', 'data/holder_bot.db')
 
 # API Endpoints
 DEX_API_URL = os.getenv(
     'DEX_API_URL',
+    'https://api.ston.fi'
+)
+
+CEX_API_URL = os.getenv(
+    'CEX_API_URL',
     'https://api.origami.tech/api/market/public/ticker?symbol_id=36380'
 )
 
-# CEX API URLs - replace with actual endpoints
-CEX_USDT_API_URL = os.getenv('CEX_USDT_API_URL', '')
-CEX_TON_API_URL = os.getenv('CEX_TON_API_URL', '')
+# HOLDER Token Contract Address
+HOLDER_CONTRACT = "EQCDuRLTylau8yKEkx1AMLpHAy6Vog_5D6aC4HNkyG8JN-me"
+
+# Mini App Settings
+MINIAPP_PORT = int(os.getenv('MINIAPP_PORT', '8000'))
+MINIAPP_HOST = os.getenv('MINIAPP_HOST', '0.0.0.0')
 
 # Logging
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')

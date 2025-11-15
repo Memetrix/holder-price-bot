@@ -22,6 +22,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual environments
 venv/
@@ -35,16 +36,33 @@ env/
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
-Thumbs.db
-
-# Logs
-*.log
-logs/
 
 # Database
 *.db
 *.sqlite
 *.sqlite3
+data/
+
+# Logs
+*.log
+logs/
+
+# Node.js (Mini App Frontend)
+node_modules/
+miniapp/frontend/dist/
+miniapp/frontend/.vite/
+miniapp/frontend/package-lock.json
+miniapp/frontend/yarn.lock
+
+# Temporary files
+*.tmp
+temp/
+tmp/
+
+# Docker
+.dockerignore
+
+# Charts
+*.png
+!docs/*.png
