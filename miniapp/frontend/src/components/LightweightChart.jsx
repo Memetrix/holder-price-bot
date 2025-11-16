@@ -89,6 +89,11 @@ function LightweightChart() {
       borderDownColor: isDark ? '#ff453a' : '#ff3b30',
       wickUpColor: isDark ? '#30d158' : '#34c759',
       wickDownColor: isDark ? '#ff453a' : '#ff3b30',
+      priceFormat: {
+        type: 'price',
+        precision: 6,
+        minMove: 0.000001,
+      },
     })
 
     candlestickSeriesRef.current = candlestickSeries
@@ -154,13 +159,15 @@ function LightweightChart() {
 
     if (dataToUse.length === 0) return
 
-    // Group data by hour for OHLC candlesticks
+    // Group data by 15-minute intervals for OHLC candlesticks
     const groupedData = {}
+    const intervalMinutes = 15
 
     dataToUse.forEach(item => {
       const date = new Date(item.timestamp)
-      // Round to hour
-      date.setMinutes(0, 0, 0)
+      // Round to 15-minute intervals
+      const minutes = Math.floor(date.getMinutes() / intervalMinutes) * intervalMinutes
+      date.setMinutes(minutes, 0, 0, 0)
       const timeKey = Math.floor(date.getTime() / 1000)
 
       const price = parseFloat(item.price_usd || item.price)
