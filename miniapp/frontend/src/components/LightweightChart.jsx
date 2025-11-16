@@ -213,23 +213,45 @@ function LightweightChart() {
         default: hours = 24
       }
 
-      // Fetch all sources
-      const [dexTonRes, dexUsdtRes, cexRes] = await Promise.all([
+      // Fetch all sources (try both old and new source names for compatibility)
+      const [dexTonRes, dexUsdtRes, cexRes, dexTonOldRes, dexUsdtOldRes, cexOldRes] = await Promise.all([
         fetch(`/api/history?source=stonfi_dex&hours=${hours}&limit=1000`),
         fetch(`/api/history?source=stonfi_dex_usdt&hours=${hours}&limit=1000`),
-        fetch(`/api/history?source=weex_cex&hours=${hours}&limit=1000`)
+        fetch(`/api/history?source=weex_cex&hours=${hours}&limit=1000`),
+        fetch(`/api/history?source=dex_ton&hours=${hours}&limit=1000`),
+        fetch(`/api/history?source=dex_usdt&hours=${hours}&limit=1000`),
+        fetch(`/api/history?source=cex&hours=${hours}&limit=1000`)
       ])
 
-      const [dexTonData, dexUsdtData, cexData] = await Promise.all([
+      const [dexTonData, dexUsdtData, cexData, dexTonOldData, dexUsdtOldData, cexOldData] = await Promise.all([
         dexTonRes.json(),
         dexUsdtRes.json(),
-        cexRes.json()
+        cexRes.json(),
+        dexTonOldRes.json(),
+        dexUsdtOldRes.json(),
+        cexOldRes.json()
       ])
 
+      // Merge old and new source data
+      const mergeDexTon = [
+        ...(dexTonData.success ? dexTonData.data : []),
+        ...(dexTonOldData.success ? dexTonOldData.data : [])
+      ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+
+      const mergeDexUsdt = [
+        ...(dexUsdtData.success ? dexUsdtData.data : []),
+        ...(dexUsdtOldData.success ? dexUsdtOldData.data : [])
+      ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+
+      const mergeCex = [
+        ...(cexData.success ? cexData.data : []),
+        ...(cexOldData.success ? cexOldData.data : [])
+      ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+
       setHistoryData({
-        dex_ton: dexTonData.success ? dexTonData.data.reverse() : [],
-        dex_usdt: dexUsdtData.success ? dexUsdtData.data.reverse() : [],
-        cex: cexData.success ? cexData.data.reverse() : []
+        dex_ton: mergeDexTon,
+        dex_usdt: mergeDexUsdt,
+        cex: mergeCex
       })
     } catch (err) {
       console.error('Failed to fetch history:', err)
