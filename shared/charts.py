@@ -330,11 +330,12 @@ class ChartGenerator:
         try:
             fig, ax = plt.subplots(figsize=(14, 7))
 
-            # Plot DEX TON data
+            # Plot DEX TON data (convert to USDT for comparison)
             if dex_ton_data:
                 dex_ton_sorted = sorted(dex_ton_data, key=lambda x: x['timestamp'])
                 dex_ton_times = [datetime.fromisoformat(d['timestamp'].replace('Z', '+00:00')) for d in dex_ton_sorted]
-                dex_ton_prices = [float(d['price']) for d in dex_ton_sorted]
+                # Use price_usd if available, otherwise fallback to price
+                dex_ton_prices = [float(d.get('price_usd') or d.get('price', 0)) for d in dex_ton_sorted]
                 ax.plot(dex_ton_times, dex_ton_prices, color='#27AE60', linewidth=2.5, label='🟢 DEX (HOLDER/TON)', marker='o', markersize=4, alpha=0.8)
 
             # Plot DEX USDT data
