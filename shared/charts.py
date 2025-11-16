@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from io import BytesIO
 import logging
+import gc  # For explicit memory cleanup
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ class ChartGenerator:
         Returns:
             BytesIO object containing PNG image or None if error
         """
+        fig = None
         try:
             if not price_data:
                 logger.warning("No price data to generate chart")
@@ -92,14 +94,19 @@ class ChartGenerator:
             buf = BytesIO()
             plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
             buf.seek(0)
-            plt.close(fig)
 
             return buf
 
         except Exception as e:
             logger.error(f"Error generating price chart: {e}")
-            plt.close('all')
             return None
+
+        finally:
+            # Guaranteed cleanup to prevent memory leaks
+            if fig is not None:
+                plt.close(fig)
+            plt.close('all')  # Close any remaining figures
+            gc.collect()  # Force garbage collection
 
     def generate_comparison_chart(
         self,
@@ -118,6 +125,7 @@ class ChartGenerator:
         Returns:
             BytesIO object containing PNG image or None if error
         """
+        fig = None
         try:
             fig, ax = plt.subplots(figsize=(12, 6))
 
@@ -155,14 +163,19 @@ class ChartGenerator:
             buf = BytesIO()
             plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
             buf.seek(0)
-            plt.close(fig)
 
             return buf
 
         except Exception as e:
             logger.error(f"Error generating comparison chart: {e}")
-            plt.close('all')
             return None
+
+        finally:
+            # Guaranteed cleanup to prevent memory leaks
+            if fig is not None:
+                plt.close(fig)
+            plt.close('all')
+            gc.collect()
 
     def generate_volume_chart(
         self,
@@ -179,6 +192,7 @@ class ChartGenerator:
         Returns:
             BytesIO object containing PNG image or None if error
         """
+        fig = None
         try:
             if not volume_data:
                 return None
@@ -211,14 +225,19 @@ class ChartGenerator:
             buf = BytesIO()
             plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
             buf.seek(0)
-            plt.close(fig)
 
             return buf
 
         except Exception as e:
             logger.error(f"Error generating volume chart: {e}")
-            plt.close('all')
             return None
+
+        finally:
+            # Guaranteed cleanup to prevent memory leaks
+            if fig is not None:
+                plt.close(fig)
+            plt.close('all')
+            gc.collect()
 
     def generate_arbitrage_chart(
         self,
@@ -235,6 +254,7 @@ class ChartGenerator:
         Returns:
             BytesIO object containing PNG image or None if error
         """
+        fig = None
         try:
             if not arb_data:
                 return None
@@ -271,11 +291,16 @@ class ChartGenerator:
             buf = BytesIO()
             plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
             buf.seek(0)
-            plt.close(fig)
 
             return buf
 
         except Exception as e:
             logger.error(f"Error generating arbitrage chart: {e}")
-            plt.close('all')
             return None
+
+        finally:
+            # Guaranteed cleanup to prevent memory leaks
+            if fig is not None:
+                plt.close(fig)
+            plt.close('all')
+            gc.collect()
