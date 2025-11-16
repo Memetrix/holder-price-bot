@@ -70,9 +70,17 @@ class Database:
                 )
             """)
 
+            # Migration: Drop old suboptimal index if exists
+            try:
+                cursor.execute("DROP INDEX IF EXISTS idx_price_timestamp")
+            except Exception:
+                pass  # Index might not exist in new installations
+
+            # Optimized index: source first (equality), then timestamp (range)
+            # DESC helps with ORDER BY timestamp DESC (no sort needed!)
             cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_price_timestamp
-                ON price_history(timestamp, source)
+                CREATE INDEX IF NOT EXISTS idx_source_timestamp
+                ON price_history(source, timestamp DESC)
             """)
 
             cursor.execute("""
@@ -131,9 +139,17 @@ class Database:
                 )
             """)
 
+            # Migration: Drop old suboptimal index if exists
+            try:
+                cursor.execute("DROP INDEX IF EXISTS idx_price_timestamp")
+            except Exception:
+                pass  # Index might not exist in new installations
+
+            # Optimized index: source first (equality), then timestamp (range)
+            # DESC helps with ORDER BY timestamp DESC (no sort needed!)
             cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_price_timestamp
-                ON price_history(timestamp, source)
+                CREATE INDEX IF NOT EXISTS idx_source_timestamp
+                ON price_history(source, timestamp DESC)
             """)
 
             cursor.execute("""

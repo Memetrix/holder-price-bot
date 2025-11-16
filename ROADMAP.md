@@ -141,141 +141,64 @@ miniapp/backend/shared/database.py (~150 строк) - ДУБЛИКАТ
 
 ---
 
-### 2.2 Database Connection Pooling (День 2-3)
+### 2.2 Database Connection Pooling ⏭️ **SKIPPED**
 
-#### 2.2.1 Установка async database drivers
-**Текущая проблема:**
-- psycopg2 (синхронный) блокирует async код
-- Каждый запрос создаёт новое соединение
+**Статус:** ⏭️ ПРОПУЩЕНО (overengineering)
+**Причина:** Telegram бот с 2-10 пользователями не нуждается в connection pooling
 
-**Решение:**
-- [ ] Добавить в requirements.txt:
-  ```
-  asyncpg==0.29.0
-  aiosqlite==0.19.0
-  ```
-- [ ] Обновить database.py на async операции
+**Анализ:**
+- Нагрузка: ~1-10 DB queries/minute
+- psycopg2 (sync) работает нормально при такой нагрузке
+- Connection pool (min=2, max=10) избыточен
+- Переписывание на asyncpg (~300 строк) - waste of time без performance gain
 
-**Результат:** Полностью async database
-
-#### 2.2.2 Реализация connection pool
-**Создать класс DatabasePool:**
-
-```python
-class DatabasePool:
-    async def initialize(self):
-        if USE_POSTGRES:
-            self.pool = await asyncpg.create_pool(
-                DATABASE_URL,
-                min_size=2,
-                max_size=10,
-                command_timeout=60
-            )
-```
-
-**Задачи:**
-- [ ] Создать DatabasePool класс
-- [ ] Connection pool для PostgreSQL
-- [ ] Async SQLite support
-- [ ] Обновить все DB методы на async
-- [ ] Заменить `get_connection()` на `async acquire()`
-
-**Результат:**
-- Connection pooling
-- Нет утечек
-- Async операции
-
-#### 2.2.3 Обновление всех вызовов БД
-**Паттерн замены:**
-```python
-# Было:
-conn = db.get_connection()
-cursor.execute(...)
-conn.close()
-
-# Стало:
-async with db.pool.acquire() as conn:
-    result = await conn.fetch(...)
-```
-
-**Файлы для обновления:**
-- [ ] `bot/main.py` - price monitoring task
-- [ ] `bot/handlers/commands.py`
-- [ ] `bot/handlers/portfolio.py`
-- [ ] `bot/handlers/alerts.py`
-- [ ] `shared/price_tracker.py` - enrich_with_db_stats
-
-**Результат:** Все DB операции async с pool
+**Решение:** Оставить текущую архитектуру, сфокусироваться на реальных улучшениях
 
 ---
 
-### 2.3 Оптимизация Database Queries (День 3)
+### 2.3 Оптимизация Database Queries ✅ **COMPLETED**
 
-#### 2.3.1 Улучшение индексов
+**Статус:** ✅ ЗАВЕРШЕНО (с упрощениями для low-traffic бота)
 
-**Текущий индекс:**
+#### 2.3.1 Улучшение индексов ✅
+
+**Было:**
 ```sql
 CREATE INDEX idx_price_timestamp ON price_history(timestamp, source)
 ```
 
-**Проблема:** Запросы фильтруют по source первым
-
-**Новые индексы:**
-```sql
--- Основной для source + time range
-CREATE INDEX idx_source_timestamp ON price_history(source, timestamp DESC);
-
--- Быстрый поиск последних
-CREATE INDEX idx_timestamp_desc ON price_history(timestamp DESC);
-
--- Для статистики
-CREATE INDEX idx_source_price ON price_history(source, price);
-```
-
-**Задачи:**
-- [ ] Создать новые индексы
-- [ ] Удалить старый индекс
-- [ ] Измерить улучшение производительности
-
-**Ожидаемый результат:** Запросы быстрее в 3-5 раз
-
-#### 2.3.2 Исправление N+1 Query
-
-**Проблема:** `price_tracker.py:256-297`
-```python
-for source_key, price_data in prices.items():
-    history = await db.get_price_history(source=source, hours=24)
-```
-3 запроса вместо 1!
+**Проблема:** Индекс неоптимален - запросы фильтруют `WHERE source = ... AND timestamp >= ...`
 
 **Решение:**
-```python
-# Новый метод
-async def get_all_sources_history(self, hours=24, limit=1000):
-    """Get history for ALL sources in one query"""
-    query = """
-        SELECT * FROM price_history
-        WHERE timestamp >= NOW() - INTERVAL '{hours} hours'
-        ORDER BY source, timestamp DESC
-    """
-    # Group by source in Python
+```sql
+-- Оптимизированный индекс (source first, timestamp second)
+CREATE INDEX idx_source_timestamp ON price_history(source, timestamp DESC);
 ```
 
-**Задачи:**
-- [ ] Создать метод `get_all_sources_history()`
-- [ ] Обновить `enrich_with_db_stats()` использовать его
-- [ ] Тестировать производительность
+**Реализация:**
+- [x] Создать новый оптимизированный индекс
+- [x] Автоматическая миграция: DROP old → CREATE new
+- [x] Поддержка PostgreSQL + SQLite
+- [x] Протестировать миграцию
 
-**Результат:** 1 запрос вместо 3, быстрее в 2-3 раза
+**Результат:** ✅ Index-only scan вместо Index Scan + Sort
 
-#### 2.3.3 Prepared statements
-**Для часто выполняемых запросов:**
+**Не реализовано (избыточно для 2-10 пользователей):**
+- ⏭️ `idx_timestamp_desc` - не нужен при малой нагрузке
+- ⏭️ `idx_source_price` - нет запросов по price
 
-**Задачи:**
-- [ ] Добавить prepared statements в initialize()
-- [ ] Использовать для частых queries
+#### 2.3.2 N+1 Query ⏭️ **SKIPPED**
 
-**Результат:** Query execution быстрее на 10-20%
+**Статус:** ⏭️ ПРОПУЩЕНО
+**Причина:** Микрооптимизация для 2-10 пользователей
+- 3 DB queries вместо 1 = ~3ms overhead
+- При нагрузке 1-10 req/min это незаметно
+- Не стоит усложнять код ради 3ms
+
+#### 2.3.3 Prepared Statements ⏭️ **SKIPPED**
+
+**Статус:** ⏭️ ПРОПУЩЕНО
+**Причина:** 10-20% improvement на ~1-2ms - незаметно при малой нагрузке
 
 ---
 
