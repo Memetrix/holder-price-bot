@@ -47,6 +47,10 @@ logger = logging.getLogger(__name__)
 # Global instances
 db = Database()
 
+# Monitoring health tracking
+last_successful_update = None
+monitoring_stuck_threshold = 300  # 5 minutes
+
 
 async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle all callback queries from inline buttons."""
@@ -80,12 +84,29 @@ async def price_monitoring_task(application: Application) -> None:
     Background task to monitor prices and send alerts.
     Runs continuously and checks for price changes.
     """
+    global last_successful_update
     logger.info("Starting price monitoring task...")
 
     while True:
         try:
-            # Get current prices (force refresh to update cache for users)
-            prices = await price_tracker.get_all_prices(force_refresh=True)
+            # Watchdog: Check if monitoring is stuck
+            if last_successful_update:
+                time_since_update = (datetime.now() - last_successful_update).total_seconds()
+                if time_since_update > monitoring_stuck_threshold:
+                    logger.error(f"⚠️ MONITORING STUCK! No updates for {time_since_update:.0f}s (threshold: {monitoring_stuck_threshold}s)")
+                    # Reset to try recovery
+                    last_successful_update = None
+
+            # Get current prices with timeout (max 45 seconds per iteration)
+            try:
+                prices = await asyncio.wait_for(
+                    price_tracker.get_all_prices(force_refresh=True),
+                    timeout=45.0
+                )
+            except asyncio.TimeoutError:
+                logger.error("⚠️ Price fetch timeout (45s) - skipping this iteration")
+                await asyncio.sleep(CHECK_INTERVAL)
+                continue
 
             # Save prices to database
             if prices.get('dex_ton'):
@@ -94,6 +115,10 @@ async def price_monitoring_task(application: Application) -> None:
                 await db.save_price(prices['dex_usdt'])
             if prices.get('cex'):
                 await db.save_price(prices['cex'])
+
+            # Update watchdog timestamp
+            last_successful_update = datetime.now()
+            logger.debug(f"✅ Monitoring update successful at {last_successful_update}")
 
             # Check for significant price changes
             changes = price_tracker.check_significant_changes(prices, threshold=ALERT_THRESHOLD)
