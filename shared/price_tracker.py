@@ -130,12 +130,14 @@ class PriceTracker:
                 pool = pool_list[0]
 
                 # Extract reserves
-                reserve0 = float(pool.get('reserve0', 0))  # TON (9 decimals)
-                reserve1 = float(pool.get('reserve1', 0))  # USDT (6 decimals)
+                # Note: API returns reserves in token address order, not query order
+                # token0_address = USDT, token1_address = TON
+                reserve0 = float(pool.get('reserve0', 0))  # USDT (6 decimals)
+                reserve1 = float(pool.get('reserve1', 0))  # TON (9 decimals)
 
                 # Normalize decimals
-                ton_normalized = reserve0 / (10 ** 9)
-                usdt_normalized = reserve1 / (10 ** 6)
+                usdt_normalized = reserve0 / (10 ** 6)
+                ton_normalized = reserve1 / (10 ** 9)
 
                 # Calculate TON/USDT price (USDT per 1 TON)
                 ton_usdt_price = (usdt_normalized / ton_normalized) if ton_normalized > 0 else None
