@@ -82,8 +82,19 @@ async def price_broadcast_task():
     """Background task to broadcast price updates via WebSocket."""
     while True:
         try:
-            # Get current prices
-            prices = await price_tracker.get_all_prices()
+            # Get current prices from database (don't make API calls)
+            # This avoids rate limiting - we use data collected by the bot
+            history_dex_ton = await db.get_price_history(source='stonfi_dex', hours=1, limit=1)
+            history_dex_usdt = await db.get_price_history(source='stonfi_dex_usdt', hours=1, limit=1)
+            history_cex = await db.get_price_history(source='weex_cex', hours=1, limit=1)
+
+            prices = {}
+            if history_dex_ton:
+                prices['dex_ton'] = history_dex_ton[0]
+            if history_dex_usdt:
+                prices['dex_usdt'] = history_dex_usdt[0]
+            if history_cex:
+                prices['cex'] = history_cex[0]
 
             # Broadcast to all connected clients
             if prices:
@@ -93,8 +104,8 @@ async def price_broadcast_task():
                     "timestamp": datetime.now().isoformat()
                 })
 
-            # Wait 30 seconds before next update
-            await asyncio.sleep(30)
+            # Wait 10 seconds before next update (frequent broadcasts from cached data)
+            await asyncio.sleep(10)
 
         except Exception as e:
             logger.error(f"Error in price broadcast task: {e}")
@@ -119,12 +130,26 @@ async def root():
 
 @app.get("/api/price")
 async def get_price():
-    """Get current prices from all sources."""
+    """Get current prices from all sources (from database cache)."""
     try:
-        prices = await price_tracker.get_all_prices()
+        # Get latest prices from database (avoids rate limiting)
+        history_dex_ton = await db.get_price_history(source='stonfi_dex', hours=24, limit=1)
+        history_dex_usdt = await db.get_price_history(source='stonfi_dex_usdt', hours=24, limit=1)
+        history_cex = await db.get_price_history(source='weex_cex', hours=24, limit=1)
+
+        logger.info(f"DB query results - dex_ton: {len(history_dex_ton) if history_dex_ton else 0}, dex_usdt: {len(history_dex_usdt) if history_dex_usdt else 0}, cex: {len(history_cex) if history_cex else 0}")
+
+        prices = {}
+        if history_dex_ton and len(history_dex_ton) > 0:
+            prices['dex_ton'] = history_dex_ton[0]
+        if history_dex_usdt and len(history_dex_usdt) > 0:
+            prices['dex_usdt'] = history_dex_usdt[0]
+        if history_cex and len(history_cex) > 0:
+            prices['cex'] = history_cex[0]
 
         if not prices:
-            raise HTTPException(status_code=503, detail="Unable to fetch prices")
+            logger.error("No price data found in database")
+            raise HTTPException(status_code=503, detail="No price data available")
 
         return {
             "success": True,
@@ -132,8 +157,10 @@ async def get_price():
             "timestamp": datetime.now().isoformat()
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error fetching prices: {e}")
+        logger.error(f"Error fetching prices: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -205,8 +232,19 @@ async def websocket_endpoint(websocket: WebSocket):
     logger.info(f"WebSocket client connected. Total connections: {len(manager.active_connections)}")
 
     try:
-        # Send initial price data
-        prices = await price_tracker.get_all_prices()
+        # Send initial price data from database
+        history_dex_ton = await db.get_price_history(source='stonfi_dex', hours=1, limit=1)
+        history_dex_usdt = await db.get_price_history(source='stonfi_dex_usdt', hours=1, limit=1)
+        history_cex = await db.get_price_history(source='weex_cex', hours=1, limit=1)
+
+        prices = {}
+        if history_dex_ton:
+            prices['dex_ton'] = history_dex_ton[0]
+        if history_dex_usdt:
+            prices['dex_usdt'] = history_dex_usdt[0]
+        if history_cex:
+            prices['cex'] = history_cex[0]
+
         await websocket.send_json({
             "type": "initial_data",
             "data": prices,

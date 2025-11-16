@@ -3,7 +3,7 @@ function Arbitrage({ data }) {
 
   return (
     <div className="arbitrage-alert">
-      <h3>💹 Arbitrage Opportunity!</h3>
+      <h3>Arbitrage Opportunity!</h3>
 
       <div className="arbitrage-details">
         <div>
@@ -28,7 +28,7 @@ function Arbitrage({ data }) {
         borderTop: '1px solid rgba(255,255,255,0.2)',
         paddingTop: '8px'
       }}>
-        ⚠️ Remember to account for transaction fees and slippage!
+        Remember to account for transaction fees and slippage!
       </div>
     </div>
   )

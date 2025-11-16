@@ -55,7 +55,9 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     await query.answer()
 
     # Route based on callback data
-    if query.data == 'price':
+    if query.data == 'start':
+        await start_command(update, context)
+    elif query.data == 'price':
         await price_command(update, context)
     elif query.data == 'stats':
         await stats_command(update, context)
@@ -87,8 +89,10 @@ async def price_monitoring_task(application: Application) -> None:
             prices = await price_tracker.get_all_prices()
 
             # Save prices to database
-            if prices.get('dex'):
-                await db.save_price(prices['dex'])
+            if prices.get('dex_ton'):
+                await db.save_price(prices['dex_ton'])
+            if prices.get('dex_usdt'):
+                await db.save_price(prices['dex_usdt'])
             if prices.get('cex'):
                 await db.save_price(prices['cex'])
 

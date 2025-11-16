@@ -112,7 +112,8 @@ async def show_alerts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             InlineKeyboardButton("✅ Включить", callback_data='alerts_on'),
             InlineKeyboardButton("❌ Выключить", callback_data='alerts_off')
         ],
-        [InlineKeyboardButton("⚙️ Настроить пороги", callback_data='alerts_config')]
+        [InlineKeyboardButton("⚙️ Настроить пороги", callback_data='alerts_config')],
+        [InlineKeyboardButton("🏠 Main Menu", callback_data='start')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 

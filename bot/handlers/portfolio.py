@@ -143,7 +143,10 @@ async def show_portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         f"🗑 Удалить: `/portfolio remove <id>`"
     )
 
-    keyboard = [[InlineKeyboardButton("🔄 Refresh", callback_data='portfolio')]]
+    # Import navigation helper
+    from bot.handlers.commands import get_back_to_menu_keyboard
+
+    keyboard = get_back_to_menu_keyboard(refresh_callback='portfolio')
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await message.reply_text(portfolio_text, parse_mode='Markdown', reply_markup=reply_markup)

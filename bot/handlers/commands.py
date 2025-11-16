@@ -10,32 +10,43 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a message when the command /start is issued."""
-    keyboard = [
+def get_main_menu_keyboard():
+    """Get main menu keyboard."""
+    return [
         [
-            InlineKeyboardButton("📊 Current Price", callback_data='price'),
-            InlineKeyboardButton("📈 24h Stats", callback_data='stats')
+            InlineKeyboardButton("📊 Price", callback_data='price'),
+            InlineKeyboardButton("📈 Stats", callback_data='stats')
         ],
         [
-            InlineKeyboardButton("🔄 Compare DEX/CEX", callback_data='compare'),
-            InlineKeyboardButton("💹 Arbitrage", callback_data='arbitrage')
+            InlineKeyboardButton("💹 Arbitrage", callback_data='arbitrage'),
+            InlineKeyboardButton("📉 Chart", callback_data='chart_24h')
         ],
         [
-            InlineKeyboardButton("📉 Chart 1h", callback_data='chart_1h'),
-            InlineKeyboardButton("📊 Chart 24h", callback_data='chart_24h')
-        ],
-        [
-            InlineKeyboardButton("💼 My Portfolio", callback_data='portfolio'),
+            InlineKeyboardButton("💼 Portfolio", callback_data='portfolio'),
             InlineKeyboardButton("🔔 Alerts", callback_data='alerts_menu')
         ]
     ]
+
+
+def get_back_to_menu_keyboard(refresh_callback=None):
+    """Get keyboard with refresh and back to menu buttons."""
+    buttons = []
+    if refresh_callback:
+        buttons.append(InlineKeyboardButton("🔄 Refresh", callback_data=refresh_callback))
+    buttons.append(InlineKeyboardButton("🏠 Main Menu", callback_data='start'))
+
+    return [buttons]
+
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a message when the command /start is issued."""
+    keyboard = get_main_menu_keyboard()
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     welcome_text = (
         "👋 *Привет! Я бот для мониторинга курса токена $HOLDER*\n\n"
         "📍 Отслеживаю цены на:\n"
-        "• *STON.fi DEX* - HOLDER/TON\n"
+        "• *STON.fi DEX* - HOLDER/TON и HOLDER/USDT\n"
         "• *WEEX CEX* - HOLDER/USDT\n\n"
         "🎯 Что я умею:\n"
         "✅ Показывать текущие цены\n"
@@ -54,7 +65,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         "👇 Выбери действие:"
     )
 
-    await update.message.reply_text(
+    # Handle both direct command and callback
+    message = update.message or update.callback_query.message
+    await message.reply_text(
         welcome_text,
         reply_markup=reply_markup,
         parse_mode='Markdown'
@@ -91,7 +104,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "💡 *Совет:* Используй кнопки для быстрого доступа!"
     )
 
-    await update.message.reply_text(help_text, parse_mode='Markdown')
+    keyboard = get_back_to_menu_keyboard()
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(help_text, parse_mode='Markdown', reply_markup=reply_markup)
 
 
 async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -113,31 +129,62 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     # Format price message
     price_text = "💰 *HOLDER Token Prices*\n\n"
 
-    if prices.get('dex'):
-        dex = prices['dex']
-        price_text += f"🟢 *STON.fi DEX*\n"
-        price_text += f"Pair: `{dex.get('pair', 'HOLDER/TON')}`\n"
-        price_text += f"Price: `{dex.get('price', 0):.6f} TON`\n"
-        change = dex.get('change_24h', 0)
-        change_emoji = "📈" if change > 0 else "📉"
-        price_text += f"24h Change: `{change:+.2f}%` {change_emoji}\n"
-        price_text += f"Volume 24h: `{dex.get('volume_24h', 0):.2f} TON`\n\n"
+    if prices.get('dex_ton'):
+        dex_ton = prices['dex_ton']
+        price_text += f"🟢 *STON.fi DEX (TON)*\n"
+        price_text += f"Pair: `{dex_ton.get('pair', 'HOLDER/TON')}`\n"
+        price_text += f"Price: `{dex_ton.get('price', 0):.6f} TON`\n"
+
+        change = dex_ton.get('change_24h', 0)
+        if change != 0:
+            change_emoji = "📈" if change > 0 else "📉"
+            price_text += f"24h Change: `{change:+.2f}%` {change_emoji}\n"
+
+        volume = dex_ton.get('volume_24h', 0)
+        if volume > 0:
+            price_text += f"Volume 24h: `{volume:.2f} TON`\n"
+
+        liquidity = dex_ton.get('liquidity_usd', 0)
+        if liquidity > 0:
+            price_text += f"Liquidity: `${liquidity:,.2f}`\n"
+        price_text += "\n"
+
+    if prices.get('dex_usdt'):
+        dex_usdt = prices['dex_usdt']
+        price_text += f"🟢 *STON.fi DEX (USDT)*\n"
+        price_text += f"Pair: `{dex_usdt.get('pair', 'HOLDER/USDT')}`\n"
+        price_text += f"Price: `${dex_usdt.get('price', 0):.6f} USDT`\n"
+
+        change = dex_usdt.get('change_24h', 0)
+        if change != 0:
+            change_emoji = "📈" if change > 0 else "📉"
+            price_text += f"24h Change: `{change:+.2f}%` {change_emoji}\n"
+
+        volume = dex_usdt.get('volume_24h', 0)
+        if volume > 0:
+            price_text += f"Volume 24h: `${volume:.2f}`\n"
+
+        liquidity = dex_usdt.get('liquidity_usd', 0)
+        if liquidity > 0:
+            price_text += f"Liquidity: `${liquidity:,.2f}`\n"
+        price_text += "\n"
 
     if prices.get('cex'):
         cex = prices['cex']
         price_text += f"🔵 *WEEX CEX*\n"
         price_text += f"Pair: `{cex.get('pair', 'HOLDER/USDT')}`\n"
         price_text += f"Price: `${cex.get('price', 0):.6f} USDT`\n"
+
         change = cex.get('change_24h', 0)
-        change_emoji = "📈" if change > 0 else "📉"
-        price_text += f"24h Change: `{change:+.2f}%` {change_emoji}\n"
-        price_text += f"Volume 24h: `${cex.get('volume_24h', 0):,.2f}`\n"
-        price_text += f"Bid/Ask: `${cex.get('bid', 0):.6f}` / `${cex.get('ask', 0):.6f}`\n\n"
+        if change != 0:
+            change_emoji = "📈" if change > 0 else "📉"
+            price_text += f"24h Change: `{change:+.2f}%` {change_emoji}\n"
+        price_text += "\n"
 
     price_text += f"🕐 Updated: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`"
 
-    # Add refresh button
-    keyboard = [[InlineKeyboardButton("🔄 Refresh", callback_data='price')]]
+    # Add navigation buttons
+    keyboard = get_back_to_menu_keyboard(refresh_callback='price')
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await message.reply_text(price_text, parse_mode='Markdown', reply_markup=reply_markup)
@@ -154,36 +201,87 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     stats = await tracker.get_24h_stats()
     await tracker.close()
 
-    if not stats or (not stats.get('dex') and not stats.get('cex')):
+    if not stats or (not stats.get('dex_ton') and not stats.get('dex_usdt') and not stats.get('cex')):
         await message.reply_text("❌ Не удалось получить статистику. Попробуйте позже.")
         return
 
     stats_text = "📈 *24h Statistics for $HOLDER*\n\n"
 
-    if stats.get('dex'):
-        dex = stats['dex']
-        stats_text += f"🟢 *STON.fi DEX*\n"
-        stats_text += f"Current: `{dex.get('current', 0):.6f} TON`\n"
-        stats_text += f"High: `{dex.get('high', 0):.6f} TON`\n"
-        stats_text += f"Low: `{dex.get('low', 0):.6f} TON`\n"
-        stats_text += f"Change: `{dex.get('change', 0):+.2f}%`\n"
-        stats_text += f"Volume: `{dex.get('volume', 0):.2f} TON`\n\n"
+    if stats.get('dex_ton'):
+        dex_ton = stats['dex_ton']
+        stats_text += f"🟢 *STON.fi DEX (TON)*\n"
+        stats_text += f"Current: `{dex_ton.get('current', 0):.6f} TON`\n"
+
+        high = dex_ton.get('high', 0)
+        low = dex_ton.get('low', 0)
+        if high > 0 and low > 0:
+            stats_text += f"High: `{high:.6f} TON`\n"
+            stats_text += f"Low: `{low:.6f} TON`\n"
+
+        change = dex_ton.get('change', 0)
+        if change != 0:
+            change_emoji = "📈" if change > 0 else "📉"
+            stats_text += f"Change: `{change:+.2f}%` {change_emoji}\n"
+
+        volume = dex_ton.get('volume', 0)
+        if volume > 0:
+            stats_text += f"Volume: `{volume:.2f} TON`\n"
+
+        liquidity = dex_ton.get('liquidity', 0)
+        if liquidity > 0:
+            stats_text += f"Liquidity: `${liquidity:,.2f}`\n"
+        stats_text += "\n"
+
+    if stats.get('dex_usdt'):
+        dex_usdt = stats['dex_usdt']
+        stats_text += f"🟢 *STON.fi DEX (USDT)*\n"
+        stats_text += f"Current: `${dex_usdt.get('current', 0):.6f}`\n"
+
+        high = dex_usdt.get('high', 0)
+        low = dex_usdt.get('low', 0)
+        if high > 0 and low > 0:
+            stats_text += f"High: `${high:.6f}`\n"
+            stats_text += f"Low: `${low:.6f}`\n"
+
+        change = dex_usdt.get('change', 0)
+        if change != 0:
+            change_emoji = "📈" if change > 0 else "📉"
+            stats_text += f"Change: `{change:+.2f}%` {change_emoji}\n"
+
+        volume = dex_usdt.get('volume', 0)
+        if volume > 0:
+            stats_text += f"Volume: `${volume:.2f}`\n"
+
+        liquidity = dex_usdt.get('liquidity', 0)
+        if liquidity > 0:
+            stats_text += f"Liquidity: `${liquidity:,.2f}`\n"
+        stats_text += "\n"
 
     if stats.get('cex'):
         cex = stats['cex']
         stats_text += f"🔵 *WEEX CEX*\n"
         stats_text += f"Current: `${cex.get('current', 0):.6f}`\n"
-        stats_text += f"High: `${cex.get('high', 0):.6f}`\n"
-        stats_text += f"Low: `${cex.get('low', 0):.6f}`\n"
-        stats_text += f"Change: `{cex.get('change', 0):+.2f}%`\n"
-        stats_text += f"Volume: `${cex.get('volume', 0):,.2f}`\n\n"
+
+        high = cex.get('high', 0)
+        low = cex.get('low', 0)
+        if high > 0 and low > 0:
+            stats_text += f"High: `${high:.6f}`\n"
+            stats_text += f"Low: `${low:.6f}`\n"
+
+        change = cex.get('change', 0)
+        if change != 0:
+            change_emoji = "📈" if change > 0 else "📉"
+            stats_text += f"Change: `{change:+.2f}%` {change_emoji}\n"
+        stats_text += "\n"
 
     if stats.get('arbitrage') and stats['arbitrage'].get('opportunity'):
         arb = stats['arbitrage']
         stats_text += f"💹 *Arbitrage Opportunity!*\n"
-        stats_text += f"Difference: `{arb.get('difference_percent', 0):.2f}%`\n\n"
+        stats_text += f"DEX USDT: `${arb.get('dex_price', 0):.6f}`\n"
+        stats_text += f"CEX USDT: `${arb.get('cex_price', 0):.6f}`\n"
+        stats_text += f"Difference: `{arb.get('difference_percent', 0):+.2f}%`\n\n"
 
-    keyboard = [[InlineKeyboardButton("🔄 Refresh", callback_data='stats')]]
+    keyboard = get_back_to_menu_keyboard(refresh_callback='stats')
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await message.reply_text(stats_text, parse_mode='Markdown', reply_markup=reply_markup)
@@ -219,7 +317,7 @@ async def arbitrage_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             f"⚠️ *Note:* Учитывай комиссии за транзакции и вывод!"
         )
 
-    keyboard = [[InlineKeyboardButton("🔄 Refresh", callback_data='arbitrage')]]
+    keyboard = get_back_to_menu_keyboard(refresh_callback='arbitrage')
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await message.reply_text(arb_text, parse_mode='Markdown', reply_markup=reply_markup)

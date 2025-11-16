@@ -5,23 +5,88 @@
 }
 
 :root {
-  --tg-theme-bg-color: #ffffff;
-  --tg-theme-text-color: #000000;
-  --tg-theme-hint-color: #707579;
-  --tg-theme-link-color: #3390ec;
-  --tg-theme-button-color: #3390ec;
-  --tg-theme-button-text-color: #ffffff;
-  --tg-theme-secondary-bg-color: #f4f4f5;
+  /* Apple HIG - Light Mode Colors */
+  --system-background: #ffffff;
+  --system-secondary-background: #f2f2f7;
+  --system-tertiary-background: #ffffff;
+  --system-grouped-background: #f2f2f7;
+
+  /* Text Colors */
+  --label-primary: #000000;
+  --label-secondary: #3c3c43;
+  --label-tertiary: #3c3c4399;
+  --label-quaternary: #3c3c434c;
+
+  /* Semantic Colors */
+  --system-blue: #007aff;
+  --system-green: #34c759;
+  --system-red: #ff3b30;
+  --system-orange: #ff9500;
+  --system-purple: #af52de;
+
+  /* Fill Colors */
+  --fill-primary: #78788033;
+  --fill-secondary: #78788028;
+  --fill-tertiary: #7676801e;
+  --fill-quaternary: #74748014;
+
+  /* Separators */
+  --separator-opaque: #c6c6c8;
+  --separator-non-opaque: #3c3c4349;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="dark"] {
+  /* Apple HIG - Dark Mode Colors */
+  --system-background: #000000;
+  --system-secondary-background: #1c1c1e;
+  --system-tertiary-background: #2c2c2e;
+  --system-grouped-background: #000000;
+
+  /* Text Colors */
+  --label-primary: #ffffff;
+  --label-secondary: #ebebf599;
+  --label-tertiary: #ebebf560;
+  --label-quaternary: #ebebf52e;
+
+  /* Semantic Colors */
+  --system-blue: #0a84ff;
+  --system-green: #30d158;
+  --system-red: #ff453a;
+  --system-orange: #ff9f0a;
+  --system-purple: #bf5af2;
+
+  /* Fill Colors */
+  --fill-primary: #7878805b;
+  --fill-secondary: #78788051;
+  --fill-tertiary: #7676803d;
+  --fill-quaternary: #7676802d;
+
+  /* Separators */
+  --separator-opaque: #38383a;
+  --separator-non-opaque: #54545899;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--tg-theme-bg-color);
-  color: var(--tg-theme-text-color);
+  /* SF Pro font family - automatically used on Apple devices via -apple-system */
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', sans-serif;
+  background-color: var(--system-grouped-background);
+  color: var(--label-primary);
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: 17px; /* Apple HIG standard body size */
+  line-height: 1.41176; /* 24pt line height for 17pt text */
 }
 
 #root {
@@ -31,176 +96,277 @@ body {
 
 .container {
   max-width: 100%;
-  padding: 16px;
+  padding: 16px; /* 8pt grid: 2 units */
 }
 
+/* Typography - Apple HIG Scale */
+h1 {
+  font-size: 28px; /* Large Title */
+  font-weight: 700;
+  letter-spacing: 0.36px;
+  line-height: 1.14286; /* 32pt */
+}
+
+h2 {
+  font-size: 22px; /* Title 1 */
+  font-weight: 700;
+  letter-spacing: 0.35px;
+  line-height: 1.18182; /* 26pt */
+}
+
+h3 {
+  font-size: 20px; /* Title 2 */
+  font-weight: 600;
+  letter-spacing: 0.38px;
+  line-height: 1.2; /* 24pt */
+}
+
+/* Cards - Apple HIG grouped inset style */
 .card {
-  background: var(--tg-theme-secondary-bg-color);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: var(--system-secondary-background);
+  border-radius: 10px; /* Apple standard corner radius */
+  padding: 16px; /* 8pt grid: 2 units */
+  margin-bottom: 16px; /* 8pt grid: 2 units */
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 
 .card-title {
-  font-size: 18px;
+  font-size: 20px; /* Title 2 */
   font-weight: 600;
-  margin-bottom: 12px;
-  color: var(--tg-theme-text-color);
+  letter-spacing: 0.38px;
+  margin-bottom: 16px; /* 8pt grid: 2 units */
+  color: var(--label-primary);
 }
 
 .price-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
-  background: white;
-  border-radius: 8px;
-  margin-bottom: 8px;
+  padding: 16px; /* 8pt grid: 2 units */
+  background: var(--fill-quaternary);
+  border-radius: 10px;
+  margin-bottom: 16px; /* 8pt grid: 2 units */
 }
 
 .price-label {
-  font-size: 14px;
-  color: var(--tg-theme-hint-color);
+  font-size: 15px; /* Subheadline */
+  color: var(--label-secondary);
+  font-weight: 400;
+  letter-spacing: -0.24px;
 }
 
 .price-value {
-  font-size: 20px;
+  font-size: 28px; /* Large Title */
   font-weight: 700;
-  color: var(--tg-theme-text-color);
+  letter-spacing: 0.36px;
+  color: var(--label-primary);
+  font-variant-numeric: tabular-nums; /* Monospaced numbers */
 }
 
 .price-change {
-  font-size: 14px;
+  font-size: 15px; /* Subheadline */
   font-weight: 600;
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 6px 12px; /* 8pt grid: rounded to nearest */
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
 }
 
 .price-change.positive {
-  color: #27ae60;
-  background: rgba(39, 174, 96, 0.1);
+  color: var(--system-green);
+  background: var(--fill-tertiary);
 }
 
 .price-change.negative {
-  color: #e74c3c;
-  background: rgba(231, 76, 60, 0.1);
+  color: var(--system-red);
+  background: var(--fill-tertiary);
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-top: 12px;
+  gap: 8px; /* 8pt grid: 1 unit */
+  margin-top: 16px; /* 8pt grid: 2 units */
 }
 
 .stat-item {
   text-align: center;
-  padding: 12px;
-  background: white;
-  border-radius: 8px;
+  padding: 16px; /* 8pt grid: 2 units */
+  background: var(--fill-quaternary);
+  border-radius: 10px;
 }
 
 .stat-label {
-  font-size: 12px;
-  color: var(--tg-theme-hint-color);
+  font-size: 13px; /* Footnote */
+  color: var(--label-secondary);
   margin-bottom: 4px;
+  font-weight: 400;
+  letter-spacing: -0.08px;
 }
 
 .stat-value {
-  font-size: 16px;
+  font-size: 17px; /* Body */
   font-weight: 600;
-  color: var(--tg-theme-text-color);
+  color: var(--label-primary);
+  letter-spacing: -0.43px;
+  font-variant-numeric: tabular-nums;
 }
 
+/* Buttons - Apple HIG Style */
 .btn {
   width: 100%;
-  padding: 12px;
+  padding: 16px; /* 8pt grid: 2 units */
   border: none;
-  border-radius: 8px;
-  font-size: 16px;
+  border-radius: 10px;
+  font-size: 17px; /* Body */
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: opacity 0.15s ease-in-out;
+  letter-spacing: -0.43px;
 }
 
 .btn:active {
-  opacity: 0.8;
+  opacity: 0.6;
 }
 
 .btn-primary {
-  background: var(--tg-theme-button-color);
-  color: var(--tg-theme-button-text-color);
+  background: var(--system-blue);
+  color: #ffffff;
 }
 
 .btn-secondary {
-  background: var(--tg-theme-secondary-bg-color);
-  color: var(--tg-theme-text-color);
+  background: var(--fill-secondary);
+  color: var(--system-blue);
 }
 
 .loading {
   text-align: center;
-  padding: 40px;
-  color: var(--tg-theme-hint-color);
+  padding: 40px; /* 8pt grid: 5 units */
+  color: var(--label-secondary);
+  font-size: 17px;
 }
 
 .error {
-  background: rgba(231, 76, 60, 0.1);
-  color: #e74c3c;
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 16px;
+  background: var(--fill-tertiary);
+  color: var(--system-red);
+  padding: 16px; /* 8pt grid: 2 units */
+  border-radius: 10px;
+  margin-bottom: 16px; /* 8pt grid: 2 units */
+  font-size: 15px;
 }
 
 .chart-container {
   position: relative;
   height: 300px;
-  margin: 16px 0;
+  margin: 16px 0; /* 8pt grid: 2 units */
 }
 
+/* Tabs - Apple Segmented Control Style */
 .tabs {
   display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 8px; /* 8pt grid: 1 unit */
+  margin-bottom: 16px; /* 8pt grid: 2 units */
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.tabs::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
 }
 
 .tab {
-  padding: 8px 16px;
-  border-radius: 20px;
+  padding: 10px 16px; /* Adjusted for better touch target */
+  border-radius: 10px;
   border: none;
-  background: var(--tg-theme-secondary-bg-color);
-  color: var(--tg-theme-text-color);
-  font-size: 14px;
+  background: var(--fill-tertiary);
+  color: var(--label-primary);
+  font-size: 15px; /* Subheadline */
+  font-weight: 400;
   cursor: pointer;
   white-space: nowrap;
+  transition: all 0.15s ease-in-out;
+  letter-spacing: -0.24px;
+  min-height: 44px; /* Apple minimum touch target */
 }
 
 .tab.active {
-  background: var(--tg-theme-button-color);
-  color: var(--tg-theme-button-text-color);
+  background: var(--system-blue);
+  color: #ffffff;
+  font-weight: 600;
 }
 
+/* Arbitrage Alert - Apple HIG Notice Style */
 .arbitrage-alert {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 16px;
-  border-radius: 12px;
-  margin-bottom: 16px;
+  background: var(--system-purple);
+  color: #ffffff;
+  padding: 16px; /* 8pt grid: 2 units */
+  border-radius: 10px;
+  margin-bottom: 16px; /* 8pt grid: 2 units */
+  box-shadow: var(--shadow-md);
 }
 
 .arbitrage-alert h3 {
-  margin-bottom: 12px;
-  font-size: 18px;
+  margin-bottom: 16px; /* 8pt grid: 2 units */
+  font-size: 20px; /* Title 2 */
+  font-weight: 600;
+  letter-spacing: 0.38px;
 }
 
 .arbitrage-details {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px; /* 8pt grid: 2 units */
 }
 
 .arbitrage-profit {
-  font-size: 24px;
+  font-size: 28px; /* Large Title */
   font-weight: 700;
+  letter-spacing: 0.36px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Theme Switcher - Apple HIG Toggle Style */
+.theme-switcher {
+  position: fixed;
+  top: 16px; /* 8pt grid: 2 units */
+  right: 16px; /* 8pt grid: 2 units */
+  width: 44px; /* Apple minimum touch target */
+  height: 44px; /* Apple minimum touch target */
+  padding: 10px;
+  border: none;
+  border-radius: 50%;
+  background: var(--fill-tertiary);
+  color: var(--label-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease-in-out;
+  z-index: 1000;
+  box-shadow: var(--shadow-sm);
+}
+
+.theme-switcher:active {
+  opacity: 0.6;
+  transform: scale(0.95);
+}
+
+.theme-switcher svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Smooth transitions for theme switching */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Remove transitions for interactive elements to keep them snappy */
+button,
+.btn,
+.tab {
+  transition: opacity 0.15s ease-in-out, background-color 0.15s ease-in-out, color 0.15s ease-in-out;
 }

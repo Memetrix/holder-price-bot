@@ -14,6 +14,7 @@ seaborn==0.13.1
 
 # Database
 # SQLite is built-in with Python
+psycopg2-binary==2.9.9  # PostgreSQL adapter for production
 
 # Utilities
 requests==2.31.0

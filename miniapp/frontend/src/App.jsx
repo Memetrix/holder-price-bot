@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
 import PriceCard from './components/PriceCard'
-import Chart from './components/Chart'
 import Stats from './components/Stats'
 import Arbitrage from './components/Arbitrage'
+import ThemeSwitcher from './components/ThemeSwitcher'
+import ComparisonChart from './components/ComparisonChart'
+import CandlestickChart from './components/CandlestickChart'
+import Alerts from './components/Alerts'
 
 function App() {
   const [prices, setPrices] = useState(null)
@@ -35,44 +38,15 @@ function App() {
     fetchArbitrage()
   }, [])
 
-  // WebSocket connection
+  // Auto-refresh prices every 30 seconds (WebSocket not supported in Vercel)
   useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.host}/ws`
+    const interval = setInterval(() => {
+      fetchPriceData()
+      fetchStats()
+      fetchArbitrage()
+    }, 30000) // 30 seconds
 
-    const websocket = new WebSocket(wsUrl)
-
-    websocket.onopen = () => {
-      console.log('WebSocket connected')
-    }
-
-    websocket.onmessage = (event) => {
-      const message = JSON.parse(event.data)
-
-      if (message.type === 'price_update' || message.type === 'initial_data') {
-        setPrices(message.data)
-      }
-    }
-
-    websocket.onerror = (error) => {
-      console.error('WebSocket error:', error)
-    }
-
-    websocket.onclose = () => {
-      console.log('WebSocket disconnected')
-      // Attempt to reconnect after 5 seconds
-      setTimeout(() => {
-        fetchPriceData()
-      }, 5000)
-    }
-
-    setWs(websocket)
-
-    return () => {
-      if (websocket) {
-        websocket.close()
-      }
-    }
+    return () => clearInterval(interval)
   }, [])
 
   const fetchPriceData = async () => {
@@ -152,8 +126,10 @@ function App() {
 
   return (
     <div className="container">
+      <ThemeSwitcher />
+
       <h1 style={{ marginBottom: '20px', fontSize: '24px', fontWeight: '700' }}>
-        💰 HOLDER Price Monitor
+        HOLDER Price Monitor
       </h1>
 
       {arbitrage && <Arbitrage data={arbitrage} />}
@@ -163,30 +139,45 @@ function App() {
           className={`tab ${activeTab === 'price' ? 'active' : ''}`}
           onClick={() => setActiveTab('price')}
         >
-          📊 Prices
+          Prices
         </button>
         <button
           className={`tab ${activeTab === 'chart' ? 'active' : ''}`}
           onClick={() => setActiveTab('chart')}
         >
-          📈 Charts
+          Charts
         </button>
         <button
           className={`tab ${activeTab === 'stats' ? 'active' : ''}`}
           onClick={() => setActiveTab('stats')}
         >
-          📉 Stats
+          Stats
+        </button>
+        <button
+          className={`tab ${activeTab === 'alerts' ? 'active' : ''}`}
+          onClick={() => setActiveTab('alerts')}
+        >
+          Alerts
         </button>
       </div>
 
       {activeTab === 'price' && prices && (
         <div>
-          {prices.dex && (
+          {prices.dex_ton && (
             <PriceCard
-              title="STON.fi DEX"
+              title="STON.fi DEX (TON)"
               source="DEX"
-              data={prices.dex}
+              data={prices.dex_ton}
               color="#27ae60"
+            />
+          )}
+
+          {prices.dex_usdt && (
+            <PriceCard
+              title="STON.fi DEX (USDT)"
+              source="DEX"
+              data={prices.dex_usdt}
+              color="#2ecc71"
             />
           )}
 
@@ -201,16 +192,23 @@ function App() {
         </div>
       )}
 
-      {activeTab === 'chart' && <Chart />}
+      {activeTab === 'chart' && (
+        <div>
+          <ComparisonChart />
+          <CandlestickChart />
+        </div>
+      )}
 
       {activeTab === 'stats' && stats && <Stats data={stats} />}
+
+      {activeTab === 'alerts' && <Alerts />}
 
       <button
         className="btn btn-primary"
         onClick={handleRefresh}
         style={{ marginTop: '16px' }}
       >
-        🔄 Refresh Data
+        Refresh Data
       </button>
 
       <div style={{
