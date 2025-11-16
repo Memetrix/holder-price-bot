@@ -135,6 +135,11 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         price_text += f"Pair: `{dex_ton.get('pair', 'HOLDER/TON')}`\n"
         price_text += f"Price: `{dex_ton.get('price', 0):.6f} TON`\n"
 
+        # Show USD equivalent
+        price_usd = dex_ton.get('price_usd')
+        if price_usd:
+            price_text += f"USD Equivalent: `${price_usd:.6f}`\n"
+
         change = dex_ton.get('change_24h', 0)
         if change != 0:
             change_emoji = "📈" if change > 0 else "📉"
