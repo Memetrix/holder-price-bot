@@ -82,7 +82,7 @@ function LightweightChart() {
 
     chartRef.current = chart
 
-    // Add candlestick series
+    // Add candlestick series (occupies top 75% of chart)
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: isDark ? '#30d158' : '#34c759',
       downColor: isDark ? '#ff453a' : '#ff3b30',
@@ -95,11 +95,15 @@ function LightweightChart() {
         precision: 6,
         minMove: 0.000001,
       },
+      scaleMargins: {
+        top: 0.1,
+        bottom: 0.25,
+      },
     })
 
     candlestickSeriesRef.current = candlestickSeries
 
-    // Add volume series
+    // Add volume series (occupies bottom 25% of chart)
     const volumeSeries = chart.addSeries(HistogramSeries, {
       color: isDark ? '#0a84ff80' : '#007aff80',
       priceFormat: {
@@ -107,7 +111,7 @@ function LightweightChart() {
       },
       priceScaleId: '',
       scaleMargins: {
-        top: 0.8,
+        top: 0.75,
         bottom: 0,
       },
     })
