@@ -342,8 +342,15 @@ class PriceTracker:
         # Enrich with database statistics
         await self.enrich_with_db_stats(prices)
 
-        # Cache the result
-        self.cache.set('all_prices', prices)
+        # Only cache if we have complete data (at least one DEX and CEX)
+        has_dex = 'dex_ton' in prices or 'dex_usdt' in prices
+        has_cex = 'cex' in prices
+
+        if has_dex and has_cex:
+            self.cache.set('all_prices', prices)
+            logger.debug("Cached complete price data (DEX + CEX)")
+        else:
+            logger.warning(f"Not caching incomplete price data (has_dex={has_dex}, has_cex={has_cex})")
 
         return prices
 
