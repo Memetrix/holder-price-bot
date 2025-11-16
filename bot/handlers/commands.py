@@ -223,6 +223,11 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             change_emoji = "📈" if change > 0 else "📉"
             stats_text += f"Change: `{change:+.2f}%` {change_emoji}\n"
 
+        # Show USD equivalent
+        price_usd = dex_ton.get('price_usd')
+        if price_usd:
+            stats_text += f"USD Equivalent: `${price_usd:.6f}`\n"
+
         volume = dex_ton.get('volume', 0)
         if volume > 0:
             stats_text += f"Volume: `{volume:.2f} TON`\n"

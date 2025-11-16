@@ -62,6 +62,10 @@ class PriceTracker:
                 # Price = reserve0 / reserve1 (TON per HOLDER)
                 price_in_ton = (reserve0 / reserve1) if reserve1 > 0 else 0
 
+                # Get TON/USDT price to calculate USD equivalent
+                ton_usdt_price = await self._get_ton_usdt_price()
+                price_in_usd = price_in_ton * ton_usdt_price if ton_usdt_price else None
+
                 # Now get volume from stats API
                 since = (datetime.utcnow() - timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%S')
                 until = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
@@ -87,7 +91,7 @@ class PriceTracker:
                     'source': 'stonfi_dex',
                     'pair': 'HOLDER/TON',
                     'price': price_in_ton,
-                    'price_usd': None,  # Will calculate with TON price
+                    'price_usd': price_in_usd,  # USD equivalent calculated from TON/USDT
                     'change_24h': 0,  # Calculated from DB
                     'volume_24h': volume_ton,
                     'high_24h': 0,  # Calculated from DB
@@ -99,6 +103,49 @@ class PriceTracker:
 
         except Exception as e:
             logger.error(f"Error fetching STON.fi price: {e}")
+            return None
+
+    async def _get_ton_usdt_price(self) -> Optional[float]:
+        """
+        Get TON/USDT exchange rate from STON.fi.
+        Returns the price of 1 TON in USDT.
+        """
+        try:
+            session = await self._get_session()
+
+            # Get TON/USDT pool
+            pool_url = f"https://api.ston.fi/v1/pools/by_market/{TON_CONTRACT}/{USDT_CONTRACT}"
+            async with session.get(pool_url, timeout=10) as response:
+                if response.status != 200:
+                    logger.warning(f"TON/USDT pool not found on STON.fi (status {response.status})")
+                    return None
+
+                pool_data = await response.json()
+                pool_list = pool_data.get('pool_list', [])
+                if not pool_list:
+                    logger.warning("No TON/USDT pools found")
+                    return None
+
+                pool = pool_list[0]
+
+                # Extract reserves
+                reserve0 = float(pool.get('reserve0', 0))  # TON (9 decimals)
+                reserve1 = float(pool.get('reserve1', 0))  # USDT (6 decimals)
+
+                # Normalize decimals
+                ton_normalized = reserve0 / (10 ** 9)
+                usdt_normalized = reserve1 / (10 ** 6)
+
+                # Calculate TON/USDT price (USDT per 1 TON)
+                ton_usdt_price = (usdt_normalized / ton_normalized) if ton_normalized > 0 else None
+
+                if ton_usdt_price:
+                    logger.info(f"TON/USDT rate from STON.fi: ${ton_usdt_price:.4f}")
+
+                return ton_usdt_price
+
+        except Exception as e:
+            logger.error(f"Error fetching TON/USDT price: {e}")
             return None
 
     async def get_stonfi_usdt_price(self) -> Optional[Dict]:
@@ -311,6 +358,7 @@ class PriceTracker:
                 'volume': dex_ton.get('volume_24h'),
                 'change': dex_ton.get('change_24h'),
                 'current': dex_ton.get('price'),
+                'price_usd': dex_ton.get('price_usd'),  # USD equivalent
                 'liquidity': dex_ton.get('liquidity_usd')
             }
 
