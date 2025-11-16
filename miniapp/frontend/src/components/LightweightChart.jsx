@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { createChart, ColorType, CrosshairMode } from 'lightweight-charts'
+import { createChart, ColorType, CrosshairMode, CandlestickSeries, HistogramSeries } from 'lightweight-charts'
 
 function LightweightChart() {
   const [historyData, setHistoryData] = useState({ dex_ton: [], dex_usdt: [], cex: [] })
@@ -82,7 +82,7 @@ function LightweightChart() {
     chartRef.current = chart
 
     // Add candlestick series
-    const candlestickSeries = chart.addCandlestickSeries({
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: isDark ? '#30d158' : '#34c759',
       downColor: isDark ? '#ff453a' : '#ff3b30',
       borderUpColor: isDark ? '#30d158' : '#34c759',
@@ -94,7 +94,7 @@ function LightweightChart() {
     candlestickSeriesRef.current = candlestickSeries
 
     // Add volume series
-    const volumeSeries = chart.addHistogramSeries({
+    const volumeSeries = chart.addSeries(HistogramSeries, {
       color: isDark ? '#0a84ff80' : '#007aff80',
       priceFormat: {
         type: 'volume',
