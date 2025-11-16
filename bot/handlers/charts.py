@@ -14,7 +14,7 @@ chart_gen = ChartGenerator()
 
 
 async def chart_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Generate and send price chart."""
+    """Generate and send price charts for all sources."""
     message = update.message or update.callback_query.message
 
     # Parse period from args or callback data
@@ -46,20 +46,25 @@ async def chart_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     await message.reply_text(f"📊 Генерирую график за {period}...")
 
-    # Get price history from database
-    price_history = await db.get_price_history(source='weex_cex', hours=hours, limit=1000)
+    # Get price history for all sources
+    dex_ton_history = await db.get_price_history(source='stonfi_dex', hours=hours, limit=1000)
+    dex_usdt_history = await db.get_price_history(source='stonfi_dex_usdt', hours=hours, limit=1000)
+    cex_history = await db.get_price_history(source='weex_cex', hours=hours, limit=1000)
 
-    if not price_history:
+    # Check if we have any data
+    if not dex_ton_history and not dex_usdt_history and not cex_history:
         await message.reply_text(
             "❌ Недостаточно данных для построения графика.\n"
             "Бот должен проработать некоторое время для накопления истории цен."
         )
         return
 
-    # Generate chart
-    chart_buf = chart_gen.generate_price_chart(
-        price_history,
-        title=f"HOLDER Price ({period})",
+    # Generate combined chart with all sources
+    chart_buf = chart_gen.generate_multi_source_chart(
+        dex_ton_history,
+        dex_usdt_history,
+        cex_history,
+        title="HOLDER Price - All Sources",
         period=period
     )
 
@@ -67,10 +72,21 @@ async def chart_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await message.reply_text("❌ Ошибка при генерации графика.")
         return
 
+    # Build caption with data points info
+    caption_parts = [f"📊 **HOLDER Price ({period})**\n"]
+
+    if dex_ton_history:
+        caption_parts.append(f"🟢 DEX TON: {len(dex_ton_history)} точек")
+    if dex_usdt_history:
+        caption_parts.append(f"🟢 DEX USDT: {len(dex_usdt_history)} точек")
+    if cex_history:
+        caption_parts.append(f"🔵 CEX: {len(cex_history)} точек")
+
     # Send chart
     await message.reply_photo(
-        photo=InputFile(chart_buf, filename=f'holder_price_{period}.png'),
-        caption=f"📈 График цены HOLDER за {period}"
+        photo=InputFile(chart_buf, filename=f'holder_all_sources_{period}.png'),
+        caption="\n".join(caption_parts),
+        parse_mode='Markdown'
     )
 
 

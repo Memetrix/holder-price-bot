@@ -304,3 +304,83 @@ class ChartGenerator:
                 plt.close(fig)
             plt.close('all')
             gc.collect()
+
+    def generate_multi_source_chart(
+        self,
+        dex_ton_data: List[Dict],
+        dex_usdt_data: List[Dict],
+        cex_data: List[Dict],
+        title: str = "HOLDER Price - All Sources",
+        period: str = "24h"
+    ) -> Optional[BytesIO]:
+        """
+        Generate chart with all price sources on one plot.
+
+        Args:
+            dex_ton_data: DEX HOLDER/TON price history
+            dex_usdt_data: DEX HOLDER/USDT price history
+            cex_data: CEX price history
+            title: Chart title
+            period: Time period label
+
+        Returns:
+            BytesIO object containing PNG image or None if error
+        """
+        fig = None
+        try:
+            fig, ax = plt.subplots(figsize=(14, 7))
+
+            # Plot DEX TON data
+            if dex_ton_data:
+                dex_ton_sorted = sorted(dex_ton_data, key=lambda x: x['timestamp'])
+                dex_ton_times = [datetime.fromisoformat(d['timestamp'].replace('Z', '+00:00')) for d in dex_ton_sorted]
+                dex_ton_prices = [float(d['price']) for d in dex_ton_sorted]
+                ax.plot(dex_ton_times, dex_ton_prices, color='#27AE60', linewidth=2.5, label='🟢 DEX (HOLDER/TON)', marker='o', markersize=4, alpha=0.8)
+
+            # Plot DEX USDT data
+            if dex_usdt_data:
+                dex_usdt_sorted = sorted(dex_usdt_data, key=lambda x: x['timestamp'])
+                dex_usdt_times = [datetime.fromisoformat(d['timestamp'].replace('Z', '+00:00')) for d in dex_usdt_sorted]
+                dex_usdt_prices = [float(d['price']) for d in dex_usdt_sorted]
+                ax.plot(dex_usdt_times, dex_usdt_prices, color='#3498DB', linewidth=2.5, label='🟢 DEX (HOLDER/USDT)', marker='s', markersize=4, alpha=0.8)
+
+            # Plot CEX data
+            if cex_data:
+                cex_sorted = sorted(cex_data, key=lambda x: x['timestamp'])
+                cex_times = [datetime.fromisoformat(d['timestamp'].replace('Z', '+00:00')) for d in cex_sorted]
+                cex_prices = [float(d.get('price_usd') or d.get('price', 0)) for d in cex_sorted]
+                ax.plot(cex_times, cex_prices, color='#E74C3C', linewidth=2.5, label='🔵 CEX (WEEX)', marker='^', markersize=4, alpha=0.8)
+
+            # Format
+            ax.set_title(f'{title} ({period})', fontsize=18, fontweight='bold', pad=20)
+            ax.set_xlabel('Time', fontsize=13)
+            ax.set_ylabel('Price (USDT)', fontsize=13)
+
+            # Format x-axis dates  
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+            ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
+            plt.xticks(rotation=45)
+
+            # Grid and legend
+            ax.grid(True, alpha=0.3, linestyle='--')
+            ax.legend(loc='best', fontsize=12, framealpha=0.9)
+
+            plt.tight_layout()
+
+            # Save to BytesIO
+            buf = BytesIO()
+            plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+            buf.seek(0)
+
+            return buf
+
+        except Exception as e:
+            logger.error(f"Error generating multi-source chart: {e}")
+            return None
+
+        finally:
+            # Guaranteed cleanup to prevent memory leaks
+            if fig is not None:
+                plt.close(fig)
+            plt.close('all')
+            gc.collect()
