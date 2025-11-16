@@ -132,7 +132,7 @@ function LightweightChart() {
       window.removeEventListener('resize', handleResize)
       chart.remove()
     }
-  }, [historyData, source])
+  }, [historyData, source, period])
 
   const updateChartData = () => {
     if (!candlestickSeriesRef.current || !volumeSeriesRef.current) return
@@ -159,15 +159,38 @@ function LightweightChart() {
 
     if (dataToUse.length === 0) return
 
-    // Group data by 15-minute intervals for OHLC candlesticks
+    // Dynamic interval based on selected period (like TradingView)
     const groupedData = {}
-    const intervalMinutes = 15
+    let intervalMinutes
+    switch(period) {
+      case '1h':
+        intervalMinutes = 5  // 5-minute candles for 1h view
+        break
+      case '24h':
+        intervalMinutes = 60  // 1-hour candles for 24h view
+        break
+      case '7d':
+        intervalMinutes = 240  // 4-hour candles for 7d view
+        break
+      default:
+        intervalMinutes = 60
+    }
 
     dataToUse.forEach(item => {
       const date = new Date(item.timestamp)
-      // Round to 15-minute intervals
-      const minutes = Math.floor(date.getMinutes() / intervalMinutes) * intervalMinutes
-      date.setMinutes(minutes, 0, 0, 0)
+
+      // Round to interval (handle both minutes and hours)
+      if (intervalMinutes >= 60) {
+        // For intervals >= 1 hour, round by hours
+        const intervalHours = intervalMinutes / 60
+        const hours = Math.floor(date.getHours() / intervalHours) * intervalHours
+        date.setHours(hours, 0, 0, 0)
+      } else {
+        // For intervals < 1 hour, round by minutes
+        const minutes = Math.floor(date.getMinutes() / intervalMinutes) * intervalMinutes
+        date.setMinutes(minutes, 0, 0, 0)
+      }
+
       const timeKey = Math.floor(date.getTime() / 1000)
 
       const price = parseFloat(item.price_usd || item.price)
