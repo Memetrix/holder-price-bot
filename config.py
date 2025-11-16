@@ -40,5 +40,13 @@ HOLDER_CONTRACT = "EQCDuRLTylau8yKEkx1AMLpHAy6Vog_5D6aC4HNkyG8JN-me"
 MINIAPP_PORT = int(os.getenv('MINIAPP_PORT', '8000'))
 MINIAPP_HOST = os.getenv('MINIAPP_HOST', '0.0.0.0')
 
+# CORS Settings
+# Comma-separated list of allowed origins for CORS
+# Example: "https://frontend-xi-umber-55.vercel.app,https://example.com"
+ALLOWED_ORIGINS = os.getenv(
+    'ALLOWED_ORIGINS',
+    'https://frontend-xi-umber-55.vercel.app'  # Default to known frontend
+).split(',')
+
 # Logging
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')

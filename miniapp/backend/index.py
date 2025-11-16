@@ -6,10 +6,17 @@ from typing import Optional
 import aiohttp
 import asyncio
 import logging
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# CORS configuration
+ALLOWED_ORIGINS = os.getenv(
+    'ALLOWED_ORIGINS',
+    'https://frontend-xi-umber-55.vercel.app'
+).split(',')
 
 # Create FastAPI app
 app = FastAPI(
@@ -18,12 +25,12 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware
+# CORS middleware with whitelist
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],  # Only allow needed methods
     allow_headers=["*"],
 )
 

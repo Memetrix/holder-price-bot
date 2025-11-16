@@ -17,6 +17,7 @@ from datetime import datetime
 
 from shared.price_tracker import PriceTracker
 from shared.database import Database
+from config import ALLOWED_ORIGINS
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,12 +30,12 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware
+# CORS middleware with whitelist
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify actual origins
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],  # Only allow needed methods
     allow_headers=["*"],
 )
 
