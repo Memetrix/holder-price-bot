@@ -320,17 +320,29 @@ class PriceTracker:
         import asyncio
         logger.debug("Fetching fresh prices from APIs")
 
-        # Fetch all prices concurrently
-        stonfi_ton_task = self.get_stonfi_price()
-        stonfi_usdt_task = self.get_stonfi_usdt_price()
-        origami_task = self.get_origami_price()
+        # Fetch STON.fi prices SEQUENTIALLY to avoid rate limiting
+        # (STON.fi has strict rate limits, parallel requests return cached data)
+        try:
+            stonfi_ton_price = await self.get_stonfi_price()
+        except Exception as e:
+            logger.error(f"Error fetching STON.fi TON price: {e}")
+            stonfi_ton_price = None
 
-        stonfi_ton_price, stonfi_usdt_price, origami_price = await asyncio.gather(
-            stonfi_ton_task,
-            stonfi_usdt_task,
-            origami_task,
-            return_exceptions=True
-        )
+        # Small delay to avoid rate limiting
+        await asyncio.sleep(0.3)
+
+        try:
+            stonfi_usdt_price = await self.get_stonfi_usdt_price()
+        except Exception as e:
+            logger.error(f"Error fetching STON.fi USDT price: {e}")
+            stonfi_usdt_price = None
+
+        # Origami can be fetched in parallel (different API)
+        try:
+            origami_price = await self.get_origami_price()
+        except Exception as e:
+            logger.error(f"Error fetching Origami price: {e}")
+            origami_price = None
 
         prices = {}
 
