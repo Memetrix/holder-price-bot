@@ -21,8 +21,8 @@ from telegram.ext import (
     ContextTypes
 )
 
-from shared.price_tracker import PriceTracker
 from shared.database import Database
+from shared.tracker_instance import tracker as price_tracker
 from bot.handlers.commands import (
     start_command,
     help_command,
@@ -45,7 +45,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Global instances
-price_tracker = PriceTracker()
 db = Database()
 
 

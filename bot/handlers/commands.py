@@ -116,15 +116,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Get current HOLDER token prices."""
-    # Import here to avoid circular imports
-    from shared.price_tracker import PriceTracker
+    # Use global tracker instance for cache consistency
+    from shared.tracker_instance import tracker
 
     message = update.message or update.callback_query.message
     await message.reply_text("⏳ Получаю актуальные данные...")
 
-    tracker = PriceTracker()
     prices = await tracker.get_all_prices()
-    await tracker.close()
 
     if not prices:
         await message.reply_text("❌ Не удалось получить данные о ценах. Попробуйте позже.")
@@ -201,14 +199,12 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Get 24h statistics for HOLDER token."""
-    from shared.price_tracker import PriceTracker
+    from shared.tracker_instance import tracker
 
     message = update.message or update.callback_query.message
     await message.reply_text("⏳ Собираю статистику...")
 
-    tracker = PriceTracker()
     stats = await tracker.get_24h_stats()
-    await tracker.close()
 
     if not stats or (not stats.get('dex_ton') and not stats.get('dex_usdt') and not stats.get('cex')):
         await message.reply_text("❌ Не удалось получить статистику. Попробуйте позже.")
@@ -303,15 +299,13 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def arbitrage_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Check for arbitrage opportunities."""
-    from shared.price_tracker import PriceTracker
+    from shared.tracker_instance import tracker
 
     message = update.message or update.callback_query.message
     await message.reply_text("⏳ Проверяю арбитражные возможности...")
 
-    tracker = PriceTracker()
     prices = await tracker.get_all_prices()
     arb = tracker.check_arbitrage_opportunity(prices, threshold=1.0)  # 1% threshold
-    await tracker.close()
 
     if not arb:
         arb_text = (

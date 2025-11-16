@@ -70,7 +70,7 @@ async def portfolio_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def show_portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Display user portfolio."""
-    from shared.price_tracker import PriceTracker
+    from shared.tracker_instance import tracker
 
     user_id = update.effective_user.id
     message = update.message or update.callback_query.message
@@ -90,9 +90,7 @@ async def show_portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     # Get current price
-    tracker = PriceTracker()
     prices = await tracker.get_all_prices()
-    await tracker.close()
 
     current_price = prices.get('cex', {}).get('price', 0) if prices.get('cex') else 0
 
