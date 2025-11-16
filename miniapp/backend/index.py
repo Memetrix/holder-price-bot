@@ -2,7 +2,9 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
+from typing import Optional
 import aiohttp
+import asyncio
 import logging
 
 # Configure logging
@@ -33,6 +35,9 @@ USDT_CONTRACT = "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs"
 # Cache for Origami API (to avoid rate limiting)
 _origami_cache = {"data": None, "timestamp": None}
 CACHE_TTL = 30  # Cache for 30 seconds
+
+# Persistent session for better connection reuse
+_session: Optional[aiohttp.ClientSession] = None
 
 
 async def get_stonfi_price():
@@ -111,8 +116,16 @@ async def get_stonfi_usdt_price():
     return None
 
 
+async def _get_session():
+    """Get or create persistent aiohttp session"""
+    global _session
+    if _session is None or _session.closed:
+        _session = aiohttp.ClientSession()
+    return _session
+
+
 async def get_origami_price():
-    """Get HOLDER price from Origami (WEEX CEX) with caching to avoid rate limits"""
+    """Get HOLDER price from Origami (WEEX CEX) with caching and retry logic"""
     global _origami_cache
 
     # Check cache first
@@ -122,10 +135,15 @@ async def get_origami_price():
             logger.info(f"Using cached Origami data (age: {cache_age:.1f}s)")
             return _origami_cache["data"]
 
-    try:
-        async with aiohttp.ClientSession() as session:
-            url = "https://api.origami.tech/api/market/public/ticker?symbol_id=36380"
-            async with session.get(url, timeout=10) as response:
+    # Retry logic: 3 attempts with exponential backoff
+    url = "https://api.origami.tech/api/market/public/ticker?symbol_id=36380"
+    max_retries = 3
+
+    for attempt in range(max_retries):
+        try:
+            session = await _get_session()
+
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=15)) as response:
                 if response.status == 200:
                     response_data = await response.json()
                     data = response_data.get('data', {})
@@ -143,25 +161,46 @@ async def get_origami_price():
                         'timestamp': datetime.now().isoformat()
                     }
 
-                    # Update cache
+                    # Update cache only on successful fetch
                     _origami_cache["data"] = result
                     _origami_cache["timestamp"] = datetime.now()
-                    logger.info("Origami data cached successfully")
+                    logger.info("Origami price fetched successfully")
 
                     return result
+
                 elif response.status == 429:
-                    logger.warning("Origami API rate limit exceeded, using cache if available")
-                    # Return cached data even if expired, better than nothing
-                    if _origami_cache["data"]:
-                        return _origami_cache["data"]
+                    # Rate limit - wait longer and retry
+                    logger.warning(f"Origami API rate limit (429), retry {attempt + 1}/{max_retries}")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                        continue
+
+                elif response.status >= 500:
+                    # Server error - retry
+                    logger.warning(f"Origami API server error ({response.status}), retry {attempt + 1}/{max_retries}")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(1 ** attempt)  # Quick retry for 5xx
+                        continue
                 else:
                     logger.error(f"Origami API returned status {response.status}")
-    except Exception as e:
-        logger.error(f"Error fetching Origami price: {e}")
-        # Return cached data on error if available
-        if _origami_cache["data"]:
-            logger.info("Using cached data due to API error")
-            return _origami_cache["data"]
+                    break  # Don't retry on client errors (4xx except 429)
+
+        except asyncio.TimeoutError:
+            logger.warning(f"Origami API timeout, retry {attempt + 1}/{max_retries}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(1)
+                continue
+        except Exception as e:
+            logger.error(f"Error fetching Origami price: {e}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(1)
+                continue
+
+    # All retries failed - return cached data if available
+    if _origami_cache["data"]:
+        cache_age = (datetime.now() - _origami_cache["timestamp"]).total_seconds()
+        logger.warning(f"Using stale cache (age: {cache_age:.1f}s) after all retries failed")
+        return _origami_cache["data"]
 
     return None
 
