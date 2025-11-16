@@ -230,41 +230,74 @@ class PriceTracker:
         Get HOLDER price from Origami API (WEEX CEX data).
         symbol_id=36380 for HOLDER
         Note: This API only returns last_price, no other market data.
+        Includes retry logic with exponential backoff for rate limiting.
         """
-        try:
-            session = await self._get_session()
-            url = "https://api.origami.tech/api/market/public/ticker?symbol_id=36380"
+        import asyncio
 
-            async with session.get(url, timeout=10) as response:
-                if response.status == 200:
-                    response_data = await response.json()
+        session = await self._get_session()
+        url = "https://api.origami.tech/api/market/public/ticker?symbol_id=36380"
 
-                    # Extract data object from response
-                    data = response_data.get('data', {})
+        max_retries = 3
 
-                    # Origami API only returns last_price
-                    last_price = float(data.get('last_price', 0))
+        for attempt in range(max_retries):
+            try:
+                async with session.get(url, timeout=15) as response:
+                    if response.status == 200:
+                        response_data = await response.json()
 
-                    return {
-                        'source': 'weex_cex',
-                        'pair': 'HOLDER/USDT',
-                        'price': last_price,
-                        'price_usd': last_price,
-                        'change_24h': 0,  # Calculated from DB
-                        'volume_24h': 0,  # Not available from API
-                        'high_24h': 0,  # Calculated from DB
-                        'low_24h': 0,  # Calculated from DB
-                        'timestamp': utc_now_iso(),
-                        'bid': 0,  # Not available from API
-                        'ask': 0  # Not available from API
-                    }
+                        # Extract data object from response
+                        data = response_data.get('data', {})
+
+                        # Origami API only returns last_price
+                        last_price = float(data.get('last_price', 0))
+
+                        return {
+                            'source': 'weex_cex',
+                            'pair': 'HOLDER/USDT',
+                            'price': last_price,
+                            'price_usd': last_price,
+                            'change_24h': 0,  # Calculated from DB
+                            'volume_24h': 0,  # Not available from API
+                            'high_24h': 0,  # Calculated from DB
+                            'low_24h': 0,  # Calculated from DB
+                            'timestamp': utc_now_iso(),
+                            'bid': 0,  # Not available from API
+                            'ask': 0  # Not available from API
+                        }
+
+                    elif response.status == 429:
+                        # Rate limit - wait longer with exponential backoff
+                        wait_time = (2 ** attempt) * 2  # 2, 4, 8 seconds
+                        logger.warning(f"Origami API rate limit (429), attempt {attempt + 1}/{max_retries}, waiting {wait_time}s")
+                        if attempt < max_retries - 1:
+                            await asyncio.sleep(wait_time)
+                            continue
+                        else:
+                            logger.error("Origami API rate limit - all retries exhausted")
+                            return None
+
+                    else:
+                        logger.error(f"Origami API returned status {response.status}")
+                        return None
+
+            except asyncio.TimeoutError:
+                logger.warning(f"Origami API timeout, attempt {attempt + 1}/{max_retries}")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(1)
+                    continue
                 else:
-                    logger.error(f"Origami API returned status {response.status}")
+                    logger.error("Origami API timeout - all retries exhausted")
                     return None
 
-        except Exception as e:
-            logger.error(f"Error fetching Origami/WEEX price: {e}")
-            return None
+            except Exception as e:
+                logger.error(f"Error fetching Origami/WEEX price: {e}")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(1)
+                    continue
+                else:
+                    return None
+
+        return None
 
     async def get_all_prices(self) -> Dict:
         """
