@@ -181,6 +181,7 @@ class Database:
 
     async def save_price(self, price_data: Dict) -> bool:
         """Save price data to history."""
+        conn = None
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
@@ -205,12 +206,23 @@ class Database:
             ))
 
             conn.commit()
-            conn.close()
             return True
 
         except Exception as e:
             logger.error(f"Error saving price to database: {e}")
+            if conn:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
             return False
+
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception as e:
+                    logger.error(f"Error closing database connection: {e}")
 
     async def get_price_history(
         self,
@@ -219,20 +231,27 @@ class Database:
         limit: int = 1000
     ) -> List[Dict]:
         """Get price history from database."""
+        conn = None
         try:
+            # Validate inputs to prevent SQL injection
+            hours = int(hours)  # Ensure hours is an integer
+            limit = int(limit)  # Ensure limit is an integer
+
             conn = self.get_connection()
             cursor = conn.cursor()
 
             if USE_POSTGRES:
-                query = """
+                # PostgreSQL doesn't support placeholders in INTERVAL, so we validate and cast to int
+                query = f"""
                     SELECT * FROM price_history
-                    WHERE timestamp >= NOW() - INTERVAL '%s hours'
-                """ % hours
+                    WHERE timestamp >= NOW() - INTERVAL '{hours} hours'
+                """
             else:
-                query = """
+                # SQLite doesn't support placeholders in datetime modifier, validate and cast to int
+                query = f"""
                     SELECT * FROM price_history
-                    WHERE datetime(timestamp) >= datetime('now', '-%s hours')
-                """ % hours
+                    WHERE datetime(timestamp) >= datetime('now', '-{hours} hours')
+                """
 
             params = []
             if source:
@@ -240,6 +259,7 @@ class Database:
                 query += f" AND source = {placeholder}"
                 params.append(source)
 
+            # Limit is validated as int above, safe to use in f-string
             query += f" ORDER BY timestamp DESC LIMIT {limit}"
 
             if params:
@@ -248,13 +268,18 @@ class Database:
                 cursor.execute(query)
 
             rows = cursor.fetchall()
-            conn.close()
-
             return [dict(row) for row in rows]
 
         except Exception as e:
             logger.error(f"Error fetching price history: {e}")
             return []
+
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception as e:
+                    logger.error(f"Error closing database connection: {e}")
 
     async def add_user_alert(
         self,

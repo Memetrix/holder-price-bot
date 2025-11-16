@@ -179,7 +179,7 @@ async def get_origami_price():
                     # Server error - retry
                     logger.warning(f"Origami API server error ({response.status}), retry {attempt + 1}/{max_retries}")
                     if attempt < max_retries - 1:
-                        await asyncio.sleep(1 ** attempt)  # Quick retry for 5xx
+                        await asyncio.sleep(2 ** attempt)  # Exponential backoff for 5xx
                         continue
                 else:
                     logger.error(f"Origami API returned status {response.status}")
