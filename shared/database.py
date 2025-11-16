@@ -8,6 +8,7 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional
 from pathlib import Path
+from shared.timezone_utils import utc_now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -202,7 +203,7 @@ class Database:
                 price_data.get('high_24h'),
                 price_data.get('low_24h'),
                 price_data.get('change_24h'),
-                price_data.get('timestamp', datetime.now().isoformat())
+                price_data.get('timestamp', utc_now_iso())
             ))
 
             conn.commit()

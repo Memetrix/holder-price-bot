@@ -6,6 +6,10 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from datetime import datetime
 import logging
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from shared.timezone_utils import moscow_now_str
 
 logger = logging.getLogger(__name__)
 
@@ -186,7 +190,7 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             price_text += f"24h Change: `{change:+.2f}%` {change_emoji}\n"
         price_text += "\n"
 
-    price_text += f"🕐 Updated: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`"
+    price_text += f"🕐 Updated: `{moscow_now_str()} MSK`"
 
     # Add navigation buttons
     keyboard = get_back_to_menu_keyboard(refresh_callback='price')

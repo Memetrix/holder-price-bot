@@ -7,6 +7,7 @@ import aiohttp
 import logging
 from typing import Dict, Optional, List
 from datetime import datetime, timedelta
+from shared.timezone_utils import utc_now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,7 @@ class PriceTracker:
                     'volume_24h': volume_ton,
                     'high_24h': 0,  # Calculated from DB
                     'low_24h': 0,  # Calculated from DB
-                    'timestamp': datetime.now().isoformat(),
+                    'timestamp': utc_now_iso(),
                     'pool_address': pool.get('address'),
                     'liquidity_usd': float(pool.get('lp_total_supply_usd', 0))
                 }
@@ -211,7 +212,7 @@ class PriceTracker:
                     'volume_24h': volume_usdt,
                     'high_24h': 0,  # Calculated from DB
                     'low_24h': 0,  # Calculated from DB
-                    'timestamp': datetime.now().isoformat(),
+                    'timestamp': utc_now_iso(),
                     'pool_address': pool.get('address'),
                     'liquidity_usd': float(pool.get('lp_total_supply_usd', 0))
                 }
@@ -249,7 +250,7 @@ class PriceTracker:
                         'volume_24h': 0,  # Not available from API
                         'high_24h': 0,  # Calculated from DB
                         'low_24h': 0,  # Calculated from DB
-                        'timestamp': datetime.now().isoformat(),
+                        'timestamp': utc_now_iso(),
                         'bid': 0,  # Not available from API
                         'ask': 0  # Not available from API
                     }
