@@ -4,6 +4,7 @@ import { createChart, ColorType, CrosshairMode, CandlestickSeries, HistogramSeri
 function LightweightChart() {
   const [historyData, setHistoryData] = useState({ dex_ton: [], dex_usdt: [], cex: [] })
   const [period, setPeriod] = useState('24h')
+  const [timeframe, setTimeframe] = useState('15m') // '5m', '15m', '1h', '4h'
   const [loading, setLoading] = useState(true)
   const [source, setSource] = useState('all') // 'all', 'dex_ton', 'dex_usdt', 'cex'
 
@@ -132,7 +133,7 @@ function LightweightChart() {
       window.removeEventListener('resize', handleResize)
       chart.remove()
     }
-  }, [historyData, source, period])
+  }, [historyData, source, timeframe])
 
   const updateChartData = () => {
     if (!candlestickSeriesRef.current || !volumeSeriesRef.current) return
@@ -159,28 +160,37 @@ function LightweightChart() {
 
     if (dataToUse.length === 0) return
 
-    // Dynamic interval based on selected period (like TradingView)
+    // Convert timeframe to interval in minutes
     const groupedData = {}
     let intervalMinutes
-    switch(period) {
+    switch(timeframe) {
+      case '5m':
+        intervalMinutes = 5
+        break
+      case '15m':
+        intervalMinutes = 15
+        break
       case '1h':
-        intervalMinutes = 5  // 5-minute candles for 1h view
+        intervalMinutes = 60
         break
-      case '24h':
-        intervalMinutes = 60  // 1-hour candles for 24h view
+      case '4h':
+        intervalMinutes = 240
         break
-      case '7d':
-        intervalMinutes = 240  // 4-hour candles for 7d view
+      case '1d':
+        intervalMinutes = 1440
         break
       default:
-        intervalMinutes = 60
+        intervalMinutes = 15
     }
 
     dataToUse.forEach(item => {
       const date = new Date(item.timestamp)
 
-      // Round to interval (handle both minutes and hours)
-      if (intervalMinutes >= 60) {
+      // Round to interval (handle minutes, hours, and days)
+      if (intervalMinutes >= 1440) {
+        // For intervals >= 1 day, round by days
+        date.setHours(0, 0, 0, 0)
+      } else if (intervalMinutes >= 60) {
         // For intervals >= 1 hour, round by hours
         const intervalHours = intervalMinutes / 60
         const hours = Math.floor(date.getHours() / intervalHours) * intervalHours
@@ -344,7 +354,7 @@ function LightweightChart() {
       </div>
 
       {/* Period selector */}
-      <div className="tabs" style={{ marginBottom: '16px' }}>
+      <div className="tabs" style={{ marginBottom: '12px' }}>
         <button
           className={`tab ${period === '1h' ? 'active' : ''}`}
           onClick={() => setPeriod('1h')}
@@ -362,6 +372,40 @@ function LightweightChart() {
           onClick={() => setPeriod('7d')}
         >
           7d
+        </button>
+      </div>
+
+      {/* Timeframe selector */}
+      <div className="tabs" style={{ marginBottom: '16px' }}>
+        <button
+          className={`tab ${timeframe === '5m' ? 'active' : ''}`}
+          onClick={() => setTimeframe('5m')}
+        >
+          5m
+        </button>
+        <button
+          className={`tab ${timeframe === '15m' ? 'active' : ''}`}
+          onClick={() => setTimeframe('15m')}
+        >
+          15m
+        </button>
+        <button
+          className={`tab ${timeframe === '1h' ? 'active' : ''}`}
+          onClick={() => setTimeframe('1h')}
+        >
+          1h
+        </button>
+        <button
+          className={`tab ${timeframe === '4h' ? 'active' : ''}`}
+          onClick={() => setTimeframe('4h')}
+        >
+          4h
+        </button>
+        <button
+          className={`tab ${timeframe === '1d' ? 'active' : ''}`}
+          onClick={() => setTimeframe('1d')}
+        >
+          1d
         </button>
       </div>
 
