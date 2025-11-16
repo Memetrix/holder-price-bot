@@ -299,19 +299,26 @@ class PriceTracker:
 
         return None
 
-    async def get_all_prices(self) -> Dict:
+    async def get_all_prices(self, force_refresh: bool = False) -> Dict:
         """
         Get prices from all sources concurrently.
-        Cached for 30 seconds to reduce API load.
-        """
-        # Check cache first (30 second TTL)
-        cached = self.cache.get('all_prices', max_age_seconds=30)
-        if cached is not None:
-            logger.debug("Returning cached prices")
-            return cached
 
-        # Cache miss - fetch fresh data
+        Args:
+            force_refresh: If True, bypass cache and fetch fresh data (used by monitoring task)
+
+        Cached for 120 seconds to ensure instant user responses.
+        Monitoring task refreshes every 60s with force_refresh=True.
+        """
+        # Check cache first (unless force refresh)
+        if not force_refresh:
+            cached = self.cache.get('all_prices', max_age_seconds=120)
+            if cached is not None:
+                logger.debug("Returning cached prices (instant response)")
+                return cached
+
+        # Fetch fresh data (monitoring task or cache miss)
         import asyncio
+        logger.debug("Fetching fresh prices from APIs")
 
         # Fetch all prices concurrently
         stonfi_ton_task = self.get_stonfi_price()

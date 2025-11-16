@@ -84,8 +84,8 @@ async def price_monitoring_task(application: Application) -> None:
 
     while True:
         try:
-            # Get current prices
-            prices = await price_tracker.get_all_prices()
+            # Get current prices (force refresh to update cache for users)
+            prices = await price_tracker.get_all_prices(force_refresh=True)
 
             # Save prices to database
             if prices.get('dex_ton'):
