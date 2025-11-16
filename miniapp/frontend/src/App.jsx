@@ -3,8 +3,7 @@ import PriceCard from './components/PriceCard'
 import Stats from './components/Stats'
 import Arbitrage from './components/Arbitrage'
 import ThemeSwitcher from './components/ThemeSwitcher'
-import ComparisonChart from './components/ComparisonChart'
-import CandlestickChart from './components/CandlestickChart'
+import LightweightChart from './components/LightweightChart'
 import Alerts from './components/Alerts'
 
 function App() {
@@ -194,8 +193,7 @@ function App() {
 
       {activeTab === 'chart' && (
         <div>
-          <ComparisonChart />
-          <CandlestickChart />
+          <LightweightChart />
         </div>
       )}
 
