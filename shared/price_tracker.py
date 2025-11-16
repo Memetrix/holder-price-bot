@@ -90,7 +90,7 @@ class PriceTracker:
                                 volume_ton = float(stat_pool.get('base_volume', 0))
                                 break
 
-                return {
+                result = {
                     'source': 'stonfi_dex',
                     'pair': 'HOLDER/TON',
                     'price': price_in_ton,
@@ -103,6 +103,8 @@ class PriceTracker:
                     'pool_address': pool.get('address'),
                     'liquidity_usd': float(pool.get('lp_total_supply_usd', 0))
                 }
+                logger.info(f"✅ HOLDER/TON: {price_in_ton:.6f} TON (${price_in_usd:.6f})")
+                return result
 
         except Exception as e:
             logger.error(f"Error fetching STON.fi price: {e}")
@@ -207,7 +209,7 @@ class PriceTracker:
                                 volume_usdt = float(stat_pool.get('base_volume', 0))
                                 break
 
-                return {
+                result = {
                     'source': 'stonfi_dex_usdt',
                     'pair': 'HOLDER/USDT',
                     'price': price_in_usdt,
@@ -220,6 +222,8 @@ class PriceTracker:
                     'pool_address': pool.get('address'),
                     'liquidity_usd': float(pool.get('lp_total_supply_usd', 0))
                 }
+                logger.info(f"✅ HOLDER/USDT: ${price_in_usdt:.6f}")
+                return result
 
         except Exception as e:
             logger.error(f"Error fetching STON.fi USDT price: {e}")
@@ -251,7 +255,7 @@ class PriceTracker:
                         # Origami API only returns last_price
                         last_price = float(data.get('last_price', 0))
 
-                        return {
+                        result = {
                             'source': 'weex_cex',
                             'pair': 'HOLDER/USDT',
                             'price': last_price,
@@ -264,6 +268,8 @@ class PriceTracker:
                             'bid': 0,  # Not available from API
                             'ask': 0  # Not available from API
                         }
+                        logger.info(f"✅ WEEX CEX: ${last_price:.6f}")
+                        return result
 
                     elif response.status == 429:
                         # Rate limit - wait longer with exponential backoff
