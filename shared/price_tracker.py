@@ -8,6 +8,7 @@ import logging
 from typing import Dict, Optional, List
 from datetime import datetime, timedelta
 from shared.timezone_utils import utc_now_iso
+from shared.cache import SimpleCache
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class PriceTracker:
     def __init__(self):
         self.previous_prices = {}
         self.session: Optional[aiohttp.ClientSession] = None
+        self.cache = SimpleCache()  # In-memory cache with TTL
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session."""
@@ -265,7 +267,17 @@ class PriceTracker:
             return None
 
     async def get_all_prices(self) -> Dict:
-        """Get prices from all sources concurrently."""
+        """
+        Get prices from all sources concurrently.
+        Cached for 30 seconds to reduce API load.
+        """
+        # Check cache first (30 second TTL)
+        cached = self.cache.get('all_prices', max_age_seconds=30)
+        if cached is not None:
+            logger.debug("Returning cached prices")
+            return cached
+
+        # Cache miss - fetch fresh data
         import asyncio
 
         # Fetch all prices concurrently
@@ -296,6 +308,9 @@ class PriceTracker:
 
         # Enrich with database statistics
         await self.enrich_with_db_stats(prices)
+
+        # Cache the result
+        self.cache.set('all_prices', prices)
 
         return prices
 
