@@ -243,12 +243,13 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if stats.get('dex_ton'):
         dex_ton = stats['dex_ton']
         stats_text += f"🟢 *STON.fi DEX (TON)*\n"
-        stats_text += f"Current: `{dex_ton.get('current', 0):.6f} TON`\n"
 
-        # Show USD equivalent right after current
+        # Show USD equivalent BEFORE current
         price_usd = dex_ton.get('price_usd')
         if price_usd:
             stats_text += f"USD Equivalent: `${price_usd:.6f}`\n"
+
+        stats_text += f"Current: `{dex_ton.get('current', 0):.6f} TON`\n"
 
         high = dex_ton.get('high', 0)
         low = dex_ton.get('low', 0)
@@ -298,12 +299,13 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if stats.get('dedust'):
         dedust = stats['dedust']
         stats_text += f"🟣 *DeDust DEX (TON)*\n"
-        stats_text += f"Current: `{dedust.get('current', 0):.6f} TON`\n"
 
-        # Show USD equivalent right after current
+        # Show USD equivalent BEFORE current
         price_usd = dedust.get('price_usd')
         if price_usd:
             stats_text += f"USD Equivalent: `${price_usd:.6f}`\n"
+
+        stats_text += f"Current: `{dedust.get('current', 0):.6f} TON`\n"
 
         high = dedust.get('high', 0)
         low = dedust.get('low', 0)
