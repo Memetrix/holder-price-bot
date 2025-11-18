@@ -51,6 +51,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         "👋 *Привет! Я бот для мониторинга курса токена $HOLDER*\n\n"
         "📍 Отслеживаю цены на:\n"
         "• *STON.fi DEX* - HOLDER/TON и HOLDER/USDT\n"
+        "• *DeDust DEX* - HOLDER/TON\n"
         "• *WEEX CEX* - HOLDER/USDT\n\n"
         "🎯 Что я умею:\n"
         "✅ Показывать текущие цены\n"
@@ -176,6 +177,31 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             price_text += f"Liquidity: `${liquidity:,.2f}`\n"
         price_text += "\n"
 
+    if prices.get('dedust'):
+        dedust = prices['dedust']
+        price_text += f"🟣 *DeDust DEX (TON)*\n"
+        price_text += f"Pair: `{dedust.get('pair', 'HOLDER/TON')}`\n"
+        price_text += f"Price: `{dedust.get('price', 0):.6f} TON`\n"
+
+        # Show USD equivalent
+        price_usd = dedust.get('price_usd')
+        if price_usd:
+            price_text += f"USD Equivalent: `${price_usd:.6f}`\n"
+
+        change = dedust.get('change_24h', 0)
+        if change != 0:
+            change_emoji = "📈" if change > 0 else "📉"
+            price_text += f"24h Change: `{change:+.2f}%` {change_emoji}\n"
+
+        volume = dedust.get('volume_24h', 0)
+        if volume > 0:
+            price_text += f"Volume 24h: `${volume:.2f}`\n"
+
+        liquidity = dedust.get('liquidity_usd', 0)
+        if liquidity > 0:
+            price_text += f"Liquidity: `${liquidity:,.2f}`\n"
+        price_text += "\n"
+
     if prices.get('cex'):
         cex = prices['cex']
         price_text += f"🔵 *WEEX CEX*\n"
@@ -206,7 +232,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     stats = await tracker.get_24h_stats()
 
-    if not stats or (not stats.get('dex_ton') and not stats.get('dex_usdt') and not stats.get('cex')):
+    if not stats or (not stats.get('dex_ton') and not stats.get('dex_usdt') and not stats.get('dedust') and not stats.get('cex')):
         await message.reply_text("❌ Не удалось получить статистику. Попробуйте позже.")
         return
 
@@ -263,6 +289,36 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             stats_text += f"Volume: `${volume:.2f}`\n"
 
         liquidity = dex_usdt.get('liquidity', 0)
+        if liquidity > 0:
+            stats_text += f"Liquidity: `${liquidity:,.2f}`\n"
+        stats_text += "\n"
+
+    if stats.get('dedust'):
+        dedust = stats['dedust']
+        stats_text += f"🟣 *DeDust DEX (TON)*\n"
+        stats_text += f"Current: `{dedust.get('current', 0):.6f} TON`\n"
+
+        high = dedust.get('high', 0)
+        low = dedust.get('low', 0)
+        if high > 0 and low > 0:
+            stats_text += f"High: `{high:.6f} TON`\n"
+            stats_text += f"Low: `{low:.6f} TON`\n"
+
+        change = dedust.get('change', 0)
+        if change != 0:
+            change_emoji = "📈" if change > 0 else "📉"
+            stats_text += f"Change: `{change:+.2f}%` {change_emoji}\n"
+
+        # Show USD equivalent
+        price_usd = dedust.get('price_usd')
+        if price_usd:
+            stats_text += f"USD Equivalent: `${price_usd:.6f}`\n"
+
+        volume = dedust.get('volume', 0)
+        if volume > 0:
+            stats_text += f"Volume: `${volume:.2f}`\n"
+
+        liquidity = dedust.get('liquidity', 0)
         if liquidity > 0:
             stats_text += f"Liquidity: `${liquidity:,.2f}`\n"
         stats_text += "\n"

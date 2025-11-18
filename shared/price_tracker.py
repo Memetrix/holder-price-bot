@@ -18,6 +18,9 @@ HOLDER_CONTRACT = "EQCDuRLTylau8yKEkx1AMLpHAy6Vog_5D6aC4HNkyG8JN-me"
 # TON Native Token Address
 TON_CONTRACT = "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"
 
+# DeDust pool address (HOLDER/TON 0.25% on DeDust via GeckoTerminal)
+DEDUST_POOL_ADDRESS = "EQA5Svd-50VLKBdAizIASaBFLgWJ11XQbdaeDy4FtTa_ybIt"
+
 # USDT (jUSDT) Token Address on TON
 USDT_CONTRACT = "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs"
 
@@ -305,6 +308,51 @@ class PriceTracker:
 
         return None
 
+    async def get_dedust_price(self) -> Optional[Dict]:
+        """
+        Get HOLDER price from DeDust DEX via GeckoTerminal API.
+        GeckoTerminal aggregates data from all DEX including DeDust.
+        """
+        session = await self._get_session()
+        url = f"https://api.geckoterminal.com/api/v2/networks/ton/pools/{DEDUST_POOL_ADDRESS}"
+
+        try:
+            async with session.get(url, timeout=10) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    pool_data = data.get('data', {})
+                    attrs = pool_data.get('attributes', {})
+
+                    price_usd = float(attrs.get('base_token_price_usd', 0))
+                    price_ton = float(attrs.get('base_token_price_native_currency', 0))
+                    volume_24h_usd = float(attrs.get('volume_usd', {}).get('h24', 0))
+                    reserve_usd = float(attrs.get('reserve_in_usd', 0))
+                    price_change_24h = float(attrs.get('price_change_percentage', {}).get('h24', 0))
+
+                    result = {
+                        'source': 'dedust_dex',
+                        'pair': 'HOLDER/TON',
+                        'price': price_ton,
+                        'price_usd': price_usd,
+                        'change_24h': price_change_24h,
+                        'volume_24h': volume_24h_usd,
+                        'high_24h': 0,  # Calculated from DB
+                        'low_24h': 0,  # Calculated from DB
+                        'timestamp': utc_now_iso(),
+                        'pool_address': DEDUST_POOL_ADDRESS,
+                        'liquidity_usd': reserve_usd
+                    }
+
+                    logger.info(f"✅ DeDust DEX: {price_ton:.6f} TON (${price_usd:.6f})")
+                    return result
+                else:
+                    logger.error(f"GeckoTerminal API returned status {response.status}")
+                    return None
+
+        except Exception as e:
+            logger.error(f"Error fetching DeDust price from GeckoTerminal: {e}")
+            return None
+
     async def get_all_prices(self, force_refresh: bool = False) -> Dict:
         """
         Get prices from all sources concurrently.
@@ -343,6 +391,16 @@ class PriceTracker:
             logger.error(f"Error fetching STON.fi USDT price: {e}")
             stonfi_usdt_price = None
 
+        # Small delay before DeDust to avoid any potential rate limiting
+        await asyncio.sleep(0.3)
+
+        # Fetch DeDust via GeckoTerminal (different API, can be sequential)
+        try:
+            dedust_price = await self.get_dedust_price()
+        except Exception as e:
+            logger.error(f"Error fetching DeDust price: {e}")
+            dedust_price = None
+
         # Origami can be fetched in parallel (different API)
         try:
             origami_price = await self.get_origami_price()
@@ -360,6 +418,10 @@ class PriceTracker:
             prices['dex_usdt'] = stonfi_usdt_price
             self.previous_prices['dex_usdt'] = stonfi_usdt_price.get('price')
 
+        if dedust_price and not isinstance(dedust_price, Exception):
+            prices['dedust'] = dedust_price
+            self.previous_prices['dedust'] = dedust_price.get('price')
+
         if origami_price and not isinstance(origami_price, Exception):
             prices['cex'] = origami_price
             self.previous_prices['cex'] = origami_price.get('price')
@@ -368,7 +430,7 @@ class PriceTracker:
         await self.enrich_with_db_stats(prices)
 
         # Only cache if we have complete data (at least one DEX and CEX)
-        has_dex = 'dex_ton' in prices or 'dex_usdt' in prices
+        has_dex = 'dex_ton' in prices or 'dex_usdt' in prices or 'dedust' in prices
         has_cex = 'cex' in prices
 
         if has_dex and has_cex:
@@ -429,6 +491,7 @@ class PriceTracker:
         stats = {
             'dex_ton': None,
             'dex_usdt': None,
+            'dedust': None,
             'cex': None,
             'arbitrage': None
         }
@@ -454,6 +517,18 @@ class PriceTracker:
                 'change': dex_usdt.get('change_24h'),
                 'current': dex_usdt.get('price'),
                 'liquidity': dex_usdt.get('liquidity_usd')
+            }
+
+        if prices.get('dedust'):
+            dedust = prices['dedust']
+            stats['dedust'] = {
+                'high': dedust.get('high_24h'),
+                'low': dedust.get('low_24h'),
+                'volume': dedust.get('volume_24h'),
+                'change': dedust.get('change_24h'),
+                'current': dedust.get('price'),
+                'price_usd': dedust.get('price_usd'),  # USD equivalent
+                'liquidity': dedust.get('liquidity_usd')
             }
 
         if prices.get('cex'):

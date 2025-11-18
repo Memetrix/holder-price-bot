@@ -180,6 +180,15 @@ function App() {
             />
           )}
 
+          {prices.dedust && (
+            <PriceCard
+              title="DeDust DEX (TON)"
+              source="DEX"
+              data={prices.dedust}
+              color="#9b59b6"
+            />
+          )}
+
           {prices.cex && (
             <PriceCard
               title="WEEX CEX"

@@ -113,6 +113,8 @@ async def price_monitoring_task(application: Application) -> None:
                 await db.save_price(prices['dex_ton'])
             if prices.get('dex_usdt'):
                 await db.save_price(prices['dex_usdt'])
+            if prices.get('dedust'):
+                await db.save_price(prices['dedust'])
             if prices.get('cex'):
                 await db.save_price(prices['cex'])
 

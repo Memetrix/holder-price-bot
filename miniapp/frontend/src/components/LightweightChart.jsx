@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { createChart, ColorType, CrosshairMode, CandlestickSeries, HistogramSeries } from 'lightweight-charts'
 
 function LightweightChart() {
-  const [historyData, setHistoryData] = useState({ dex_ton: [], dex_usdt: [], cex: [] })
+  const [historyData, setHistoryData] = useState({ dex_ton: [], dex_usdt: [], dedust: [], cex: [] })
   const [period, setPeriod] = useState('24h')
   const [timeframe, setTimeframe] = useState('15m') // '5m', '15m', '1h', '4h'
   const [loading, setLoading] = useState(true)
-  const [source, setSource] = useState('all') // 'all', 'dex_ton', 'dex_usdt', 'cex'
+  const [source, setSource] = useState('all') // 'all', 'dex_ton', 'dex_usdt', 'dedust', 'cex'
 
   const chartContainerRef = useRef()
   const chartRef = useRef()
@@ -152,6 +152,9 @@ function LightweightChart() {
       case 'dex_usdt':
         dataToUse = historyData.dex_usdt
         break
+      case 'dedust':
+        dataToUse = historyData.dedust
+        break
       case 'cex':
         dataToUse = historyData.cex
         break
@@ -258,18 +261,20 @@ function LightweightChart() {
       }
 
       // Fetch all sources (try both old and new source names for compatibility)
-      const [dexTonRes, dexUsdtRes, cexRes, dexTonOldRes, dexUsdtOldRes, cexOldRes] = await Promise.all([
+      const [dexTonRes, dexUsdtRes, dedustRes, cexRes, dexTonOldRes, dexUsdtOldRes, cexOldRes] = await Promise.all([
         fetch(`/api/history?source=stonfi_dex&hours=${hours}&limit=1000`),
         fetch(`/api/history?source=stonfi_dex_usdt&hours=${hours}&limit=1000`),
+        fetch(`/api/history?source=dedust_dex&hours=${hours}&limit=1000`),
         fetch(`/api/history?source=weex_cex&hours=${hours}&limit=1000`),
         fetch(`/api/history?source=dex_ton&hours=${hours}&limit=1000`),
         fetch(`/api/history?source=dex_usdt&hours=${hours}&limit=1000`),
         fetch(`/api/history?source=cex&hours=${hours}&limit=1000`)
       ])
 
-      const [dexTonData, dexUsdtData, cexData, dexTonOldData, dexUsdtOldData, cexOldData] = await Promise.all([
+      const [dexTonData, dexUsdtData, dedustData, cexData, dexTonOldData, dexUsdtOldData, cexOldData] = await Promise.all([
         dexTonRes.json(),
         dexUsdtRes.json(),
+        dedustRes.json(),
         cexRes.json(),
         dexTonOldRes.json(),
         dexUsdtOldRes.json(),
@@ -287,6 +292,9 @@ function LightweightChart() {
         ...(dexUsdtOldData.success ? dexUsdtOldData.data : [])
       ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
 
+      const mergeDedust = (dedustData.success ? dedustData.data : [])
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+
       const mergeCex = [
         ...(cexData.success ? cexData.data : []),
         ...(cexOldData.success ? cexOldData.data : [])
@@ -295,6 +303,7 @@ function LightweightChart() {
       setHistoryData({
         dex_ton: mergeDexTon,
         dex_usdt: mergeDexUsdt,
+        dedust: mergeDedust,
         cex: mergeCex
       })
     } catch (err) {
@@ -312,7 +321,7 @@ function LightweightChart() {
     )
   }
 
-  const hasData = historyData.dex_ton.length > 0 || historyData.dex_usdt.length > 0 || historyData.cex.length > 0
+  const hasData = historyData.dex_ton.length > 0 || historyData.dex_usdt.length > 0 || historyData.dedust.length > 0 || historyData.cex.length > 0
 
   if (!hasData) {
     return (
@@ -339,14 +348,21 @@ function LightweightChart() {
           onClick={() => setSource('dex_ton')}
           disabled={historyData.dex_ton.length === 0}
         >
-          🟢 DEX TON
+          🟢 STON TON
         </button>
         <button
           className={`tab ${source === 'dex_usdt' ? 'active' : ''}`}
           onClick={() => setSource('dex_usdt')}
           disabled={historyData.dex_usdt.length === 0}
         >
-          🟢 DEX USDT
+          🟢 STON USDT
+        </button>
+        <button
+          className={`tab ${source === 'dedust' ? 'active' : ''}`}
+          onClick={() => setSource('dedust')}
+          disabled={historyData.dedust.length === 0}
+        >
+          🟣 DeDust
         </button>
         <button
           className={`tab ${source === 'cex' ? 'active' : ''}`}

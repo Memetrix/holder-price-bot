@@ -93,6 +93,47 @@ function Stats({ data }) {
         </div>
       )}
 
+      {data.dedust && (
+        <div className="card">
+          <div className="card-title" style={{ color: '#9b59b6' }}>
+            DeDust DEX (TON) - 24h Statistics
+          </div>
+
+          <div className="stats-grid">
+            <div className="stat-item">
+              <div className="stat-label">Current Price</div>
+              <div className="stat-value">{formatPrice(data.dedust.current)} TON</div>
+            </div>
+
+            <div className="stat-item">
+              <div className="stat-label">24h Change</div>
+              <div className="stat-value" style={{
+                color: data.dedust.change >= 0 ? '#27ae60' : '#e74c3c'
+              }}>
+                {formatChange(data.dedust.change)}%
+              </div>
+            </div>
+
+            <div className="stat-item">
+              <div className="stat-label">24h High</div>
+              <div className="stat-value">{formatPrice(data.dedust.high)} TON</div>
+            </div>
+
+            <div className="stat-item">
+              <div className="stat-label">24h Low</div>
+              <div className="stat-value">{formatPrice(data.dedust.low)} TON</div>
+            </div>
+
+            <div className="stat-item" style={{ gridColumn: '1 / -1' }}>
+              <div className="stat-label">24h Volume</div>
+              <div className="stat-value">
+                ${data.dedust.volume ? parseFloat(data.dedust.volume).toLocaleString() : 'N/A'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {data.cex && (
         <div className="card">
           <div className="card-title" style={{ color: '#3498db' }}>

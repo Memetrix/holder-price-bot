@@ -66,3 +66,4 @@ tmp/
 # Charts
 *.png
 !docs/*.png
+.vercel
