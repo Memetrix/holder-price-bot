@@ -245,6 +245,11 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         stats_text += f"🟢 *STON.fi DEX (TON)*\n"
         stats_text += f"Current: `{dex_ton.get('current', 0):.6f} TON`\n"
 
+        # Show USD equivalent right after current
+        price_usd = dex_ton.get('price_usd')
+        if price_usd:
+            stats_text += f"USD Equivalent: `${price_usd:.6f}`\n"
+
         high = dex_ton.get('high', 0)
         low = dex_ton.get('low', 0)
         if high > 0 and low > 0:
@@ -255,11 +260,6 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         if change != 0:
             change_emoji = "📈" if change > 0 else "📉"
             stats_text += f"Change: `{change:+.2f}%` {change_emoji}\n"
-
-        # Show USD equivalent
-        price_usd = dex_ton.get('price_usd')
-        if price_usd:
-            stats_text += f"USD Equivalent: `${price_usd:.6f}`\n"
 
         volume = dex_ton.get('volume', 0)
         if volume > 0:
@@ -300,6 +300,11 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         stats_text += f"🟣 *DeDust DEX (TON)*\n"
         stats_text += f"Current: `{dedust.get('current', 0):.6f} TON`\n"
 
+        # Show USD equivalent right after current
+        price_usd = dedust.get('price_usd')
+        if price_usd:
+            stats_text += f"USD Equivalent: `${price_usd:.6f}`\n"
+
         high = dedust.get('high', 0)
         low = dedust.get('low', 0)
         if high > 0 and low > 0:
@@ -310,11 +315,6 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         if change != 0:
             change_emoji = "📈" if change > 0 else "📉"
             stats_text += f"Change: `{change:+.2f}%` {change_emoji}\n"
-
-        # Show USD equivalent
-        price_usd = dedust.get('price_usd')
-        if price_usd:
-            stats_text += f"USD Equivalent: `${price_usd:.6f}`\n"
 
         volume = dedust.get('volume', 0)
         if volume > 0:
