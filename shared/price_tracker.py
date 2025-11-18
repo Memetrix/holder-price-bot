@@ -18,8 +18,10 @@ HOLDER_CONTRACT = "EQCDuRLTylau8yKEkx1AMLpHAy6Vog_5D6aC4HNkyG8JN-me"
 # TON Native Token Address
 TON_CONTRACT = "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"
 
-# DeDust pool address (HOLDER/TON 0.25% on DeDust via GeckoTerminal)
-DEDUST_POOL_ADDRESS = "EQA5Svd-50VLKBdAizIASaBFLgWJ11XQbdaeDy4FtTa_ybIt"
+# Pool addresses on GeckoTerminal
+STONFI_TON_POOL = "EQBFfO1KN9KFXOkcURnYTm3q76Rg6yF63fOGh60hWF7e35MW"  # STON.fi HOLDER/TON
+STONFI_USDT_POOL = "EQB7QzomEu1neLq4jvE89hFBX6bigCgRqvKLjZKJRPASgdSY"  # STON.fi HOLDER/USDT
+DEDUST_POOL = "EQA5Svd-50VLKBdAizIASaBFLgWJ11XQbdaeDy4FtTa_ybIt"  # DeDust HOLDER/TON
 
 # USDT (jUSDT) Token Address on TON
 USDT_CONTRACT = "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs"
@@ -40,196 +42,87 @@ class PriceTracker:
         return self.session
 
     async def get_stonfi_price(self) -> Optional[Dict]:
-        """
-        Get HOLDER price from STON.fi DEX.
-        Uses HOLDER/TON pool with stats API for volume data.
-        """
+        """Get HOLDER/TON price from STON.fi pool via GeckoTerminal API."""
+        session = await self._get_session()
+        url = f"https://api.geckoterminal.com/api/v2/networks/ton/pools/{STONFI_TON_POOL}"
+
         try:
-            session = await self._get_session()
+            async with session.get(url, timeout=10) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    pool_data = data.get('data', {})
+                    attrs = pool_data.get('attributes', {})
 
-            # First, get pool data for current price
-            pool_url = f"https://api.ston.fi/v1/pools/by_market/{HOLDER_CONTRACT}/{TON_CONTRACT}"
-            async with session.get(pool_url, timeout=10) as pool_response:
-                if pool_response.status != 200:
-                    logger.warning("HOLDER/TON pool not found on STON.fi")
+                    price_usd = float(attrs.get('base_token_price_usd', 0))
+                    price_ton = float(attrs.get('base_token_price_native_currency', 0))
+                    volume_24h_usd = float(attrs.get('volume_usd', {}).get('h24', 0))
+                    reserve_usd = float(attrs.get('reserve_in_usd', 0))
+                    price_change_24h = float(attrs.get('price_change_percentage', {}).get('h24', 0))
+
+                    result = {
+                        'source': 'stonfi_dex',
+                        'pair': 'HOLDER/TON',
+                        'price': price_ton,
+                        'price_usd': price_usd,
+                        'change_24h': price_change_24h,
+                        'volume_24h': volume_24h_usd,
+                        'high_24h': 0,  # Calculated from DB
+                        'low_24h': 0,  # Calculated from DB
+                        'timestamp': utc_now_iso(),
+                        'pool_address': STONFI_TON_POOL,
+                        'liquidity_usd': reserve_usd
+                    }
+
+                    logger.info(f"✅ STON.fi HOLDER/TON: {price_ton:.6f} TON (${price_usd:.6f})")
+                    return result
+                else:
+                    logger.error(f"GeckoTerminal API returned status {response.status}")
                     return None
-
-                pool_data = await pool_response.json()
-                pool_list = pool_data.get('pool_list', [])
-                if not pool_list:
-                    return None
-
-                pool = pool_list[0]
-
-                # Calculate price from reserves
-                reserve0 = float(pool.get('reserve0', 0))  # TON
-                reserve1 = float(pool.get('reserve1', 0))  # HOLDER
-
-                # Price = reserve0 / reserve1 (TON per HOLDER)
-                price_in_ton = (reserve0 / reserve1) if reserve1 > 0 else 0
-
-                # Get TON/USDT price to calculate USD equivalent
-                ton_usdt_price = await self._get_ton_usdt_price()
-                price_in_usd = price_in_ton * ton_usdt_price if ton_usdt_price else None
-
-                # Now get volume from stats API
-                since = (datetime.utcnow() - timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%S')
-                until = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
-                stats_url = f"https://api.ston.fi/v1/stats/pool?since={since}&until={until}"
-
-                volume_ton = 0
-                async with session.get(stats_url, timeout=15) as stats_response:
-                    if stats_response.status == 200:
-                        stats_data = await stats_response.json()
-
-                        # Find HOLDER pool in stats
-                        for stat_pool in stats_data.get('stats', []):
-                            base_id = stat_pool.get('base_id', '').lower()
-                            quote_id = stat_pool.get('quote_id', '').lower()
-
-                            # Check if this is HOLDER/TON pool (pTON is base, HOLDER is quote)
-                            if (quote_id == HOLDER_CONTRACT.lower() and
-                                stat_pool.get('base_symbol') in ['pTON', 'TON']):
-                                volume_ton = float(stat_pool.get('base_volume', 0))
-                                break
-
-                result = {
-                    'source': 'stonfi_dex',
-                    'pair': 'HOLDER/TON',
-                    'price': price_in_ton,
-                    'price_usd': price_in_usd,  # USD equivalent calculated from TON/USDT
-                    'change_24h': 0,  # Calculated from DB
-                    'volume_24h': volume_ton,
-                    'high_24h': 0,  # Calculated from DB
-                    'low_24h': 0,  # Calculated from DB
-                    'timestamp': utc_now_iso(),
-                    'pool_address': pool.get('address'),
-                    'liquidity_usd': float(pool.get('lp_total_supply_usd', 0))
-                }
-                logger.info(f"✅ HOLDER/TON: {price_in_ton:.6f} TON (${price_in_usd:.6f})")
-                return result
 
         except Exception as e:
-            logger.error(f"Error fetching STON.fi price: {e}")
-            return None
-
-    async def _get_ton_usdt_price(self) -> Optional[float]:
-        """
-        Get TON/USDT exchange rate from STON.fi.
-        Returns the price of 1 TON in USDT.
-        """
-        try:
-            session = await self._get_session()
-
-            # Get TON/USDT pool
-            pool_url = f"https://api.ston.fi/v1/pools/by_market/{TON_CONTRACT}/{USDT_CONTRACT}"
-            async with session.get(pool_url, timeout=10) as response:
-                if response.status != 200:
-                    logger.warning(f"TON/USDT pool not found on STON.fi (status {response.status})")
-                    return None
-
-                pool_data = await response.json()
-                pool_list = pool_data.get('pool_list', [])
-                if not pool_list:
-                    logger.warning("No TON/USDT pools found")
-                    return None
-
-                pool = pool_list[0]
-
-                # Extract reserves
-                # Note: API returns reserves in token address order, not query order
-                # token0_address = USDT, token1_address = TON
-                reserve0 = float(pool.get('reserve0', 0))  # USDT (6 decimals)
-                reserve1 = float(pool.get('reserve1', 0))  # TON (9 decimals)
-
-                # Normalize decimals
-                usdt_normalized = reserve0 / (10 ** 6)
-                ton_normalized = reserve1 / (10 ** 9)
-
-                # Calculate TON/USDT price (USDT per 1 TON)
-                ton_usdt_price = (usdt_normalized / ton_normalized) if ton_normalized > 0 else None
-
-                if ton_usdt_price:
-                    logger.info(f"TON/USDT rate from STON.fi: ${ton_usdt_price:.4f}")
-
-                return ton_usdt_price
-
-        except Exception as e:
-            logger.error(f"Error fetching TON/USDT price: {e}")
+            logger.error(f"Error fetching STON.fi TON price from GeckoTerminal: {e}")
             return None
 
     async def get_stonfi_usdt_price(self) -> Optional[Dict]:
-        """
-        Get HOLDER/USDT price from STON.fi DEX with stats for volume.
-        """
+        """Get HOLDER/USDT price from STON.fi pool via GeckoTerminal API."""
+        session = await self._get_session()
+        url = f"https://api.geckoterminal.com/api/v2/networks/ton/pools/{STONFI_USDT_POOL}"
+
         try:
-            session = await self._get_session()
+            async with session.get(url, timeout=10) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    pool_data = data.get('data', {})
+                    attrs = pool_data.get('attributes', {})
 
-            # Get pool for HOLDER/USDT pair
-            pool_url = f"https://api.ston.fi/v1/pools/by_market/{HOLDER_CONTRACT}/{USDT_CONTRACT}"
-            async with session.get(pool_url, timeout=10) as pool_response:
-                if pool_response.status != 200:
-                    logger.warning(f"STON.fi USDT pool API returned status {pool_response.status}")
+                    # This is USDT/HOLDER pool, so HOLDER is quote_token
+                    price_usd = float(attrs.get('quote_token_price_usd', 0))
+                    volume_24h_usd = float(attrs.get('volume_usd', {}).get('h24', 0))
+                    reserve_usd = float(attrs.get('reserve_in_usd', 0))
+                    price_change_24h = float(attrs.get('price_change_percentage', {}).get('h24', 0))
+
+                    result = {
+                        'source': 'stonfi_dex_usdt',
+                        'pair': 'HOLDER/USDT',
+                        'price': price_usd,
+                        'price_usd': price_usd,
+                        'change_24h': price_change_24h,
+                        'volume_24h': volume_24h_usd,
+                        'high_24h': 0,  # Calculated from DB
+                        'low_24h': 0,  # Calculated from DB
+                        'timestamp': utc_now_iso(),
+                        'pool_address': STONFI_USDT_POOL,
+                        'liquidity_usd': reserve_usd
+                    }
+
+                    logger.info(f"✅ STON.fi HOLDER/USDT: ${price_usd:.6f}")
+                    return result
+                else:
+                    logger.error(f"GeckoTerminal API returned status {response.status}")
                     return None
-
-                pool_data = await pool_response.json()
-                pool_list = pool_data.get('pool_list', [])
-                if not pool_list:
-                    return None
-
-                pool = pool_list[0]
-
-                # Calculate price from reserves
-                reserve0 = float(pool.get('reserve0', 0))  # USDT (6 decimals)
-                reserve1 = float(pool.get('reserve1', 0))  # HOLDER (9 decimals)
-
-                # Normalize decimals and calculate price
-                # USDT has 6 decimals, HOLDER has 9 decimals
-                usdt_normalized = reserve0 / (10 ** 6)
-                holder_normalized = reserve1 / (10 ** 9)
-
-                # Price in USDT per HOLDER
-                price_in_usdt = (usdt_normalized / holder_normalized) if holder_normalized > 0 else 0
-
-                # Get volume from stats API
-                since = (datetime.utcnow() - timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%S')
-                until = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
-                stats_url = f"https://api.ston.fi/v1/stats/pool?since={since}&until={until}"
-
-                volume_usdt = 0
-                async with session.get(stats_url, timeout=15) as stats_response:
-                    if stats_response.status == 200:
-                        stats_data = await stats_response.json()
-
-                        # Find HOLDER/USDT pool in stats
-                        for stat_pool in stats_data.get('stats', []):
-                            base_id = stat_pool.get('base_id', '').lower()
-                            quote_id = stat_pool.get('quote_id', '').lower()
-
-                            # Check if this is HOLDER/USDT pool (USDT is base, HOLDER is quote)
-                            if (quote_id == HOLDER_CONTRACT.lower() and
-                                stat_pool.get('base_symbol') in ['USD₮', 'USDT']):
-                                volume_usdt = float(stat_pool.get('base_volume', 0))
-                                break
-
-                result = {
-                    'source': 'stonfi_dex_usdt',
-                    'pair': 'HOLDER/USDT',
-                    'price': price_in_usdt,
-                    'price_usd': price_in_usdt,
-                    'change_24h': 0,  # Calculated from DB
-                    'volume_24h': volume_usdt,
-                    'high_24h': 0,  # Calculated from DB
-                    'low_24h': 0,  # Calculated from DB
-                    'timestamp': utc_now_iso(),
-                    'pool_address': pool.get('address'),
-                    'liquidity_usd': float(pool.get('lp_total_supply_usd', 0))
-                }
-                logger.info(f"✅ HOLDER/USDT: ${price_in_usdt:.6f}")
-                return result
 
         except Exception as e:
-            logger.error(f"Error fetching STON.fi USDT price: {e}")
+            logger.error(f"Error fetching STON.fi USDT price from GeckoTerminal: {e}")
             return None
 
     async def get_origami_price(self) -> Optional[Dict]:
@@ -314,7 +207,7 @@ class PriceTracker:
         GeckoTerminal aggregates data from all DEX including DeDust.
         """
         session = await self._get_session()
-        url = f"https://api.geckoterminal.com/api/v2/networks/ton/pools/{DEDUST_POOL_ADDRESS}"
+        url = f"https://api.geckoterminal.com/api/v2/networks/ton/pools/{DEDUST_POOL}"
 
         try:
             async with session.get(url, timeout=10) as response:
@@ -339,7 +232,7 @@ class PriceTracker:
                         'high_24h': 0,  # Calculated from DB
                         'low_24h': 0,  # Calculated from DB
                         'timestamp': utc_now_iso(),
-                        'pool_address': DEDUST_POOL_ADDRESS,
+                        'pool_address': DEDUST_POOL,
                         'liquidity_usd': reserve_usd
                     }
 
@@ -474,11 +367,12 @@ class PriceTracker:
                         price_data['high_24h'] = max(historical_prices + [current_price])
                         price_data['low_24h'] = min(historical_prices + [current_price])
 
-                        # Calculate change from oldest price in 24h window (last item in list)
-                        oldest_price = historical_prices[-1]
-                        if oldest_price > 0:
-                            change_percent = ((current_price - oldest_price) / oldest_price) * 100
-                            price_data['change_24h'] = change_percent
+                        # Only calculate change if not already provided by API (e.g., for WEEX CEX)
+                        if price_data.get('change_24h', 0) == 0:
+                            oldest_price = historical_prices[-1]
+                            if oldest_price > 0:
+                                change_percent = ((current_price - oldest_price) / oldest_price) * 100
+                                price_data['change_24h'] = change_percent
 
         except Exception as e:
             logger.error(f"Error enriching with DB stats: {e}")
