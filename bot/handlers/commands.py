@@ -344,9 +344,11 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             stats_text += f"Change: `{change:+.2f}%` {change_emoji}\n"
         stats_text += "\n"
 
-    if stats.get('arbitrage') and stats['arbitrage'].get('opportunity'):
+    if stats.get('arbitrage'):
         arb = stats['arbitrage']
-        stats_text += f"💹 *Arbitrage Opportunity!*\n"
+        is_opportunity = arb.get('opportunity', False)
+        title = "💹 *Arbitrage Opportunity!*" if is_opportunity else "💹 *DEX/CEX Comparison*"
+        stats_text += f"{title}\n"
         stats_text += f"DEX USDT: `${arb.get('dex_price', 0):.6f}`\n"
         stats_text += f"CEX USDT: `${arb.get('cex_price', 0):.6f}`\n"
         stats_text += f"Difference: `{arb.get('difference_percent', 0):+.2f}%`\n\n"
