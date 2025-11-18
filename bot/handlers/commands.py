@@ -136,12 +136,13 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         dex_ton = prices['dex_ton']
         price_text += f"🟢 *STON.fi DEX (TON)*\n"
         price_text += f"Pair: `{dex_ton.get('pair', 'HOLDER/TON')}`\n"
-        price_text += f"Price: `{dex_ton.get('price', 0):.6f} TON`\n"
 
-        # Show USD equivalent
+        # Show USD equivalent first
         price_usd = dex_ton.get('price_usd')
         if price_usd:
             price_text += f"USD Equivalent: `${price_usd:.6f}`\n"
+
+        price_text += f"Price: `{dex_ton.get('price', 0):.6f} TON`\n"
 
         change = dex_ton.get('change_24h', 0)
         if change != 0:
@@ -181,12 +182,13 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         dedust = prices['dedust']
         price_text += f"🟣 *DeDust DEX (TON)*\n"
         price_text += f"Pair: `{dedust.get('pair', 'HOLDER/TON')}`\n"
-        price_text += f"Price: `{dedust.get('price', 0):.6f} TON`\n"
 
-        # Show USD equivalent
+        # Show USD equivalent first
         price_usd = dedust.get('price_usd')
         if price_usd:
             price_text += f"USD Equivalent: `${price_usd:.6f}`\n"
+
+        price_text += f"Price: `{dedust.get('price', 0):.6f} TON`\n"
 
         change = dedust.get('change_24h', 0)
         if change != 0:
