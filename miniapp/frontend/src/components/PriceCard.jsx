@@ -5,7 +5,7 @@ function PriceCard({ title, source, data, color }) {
   }
 
   const formatChange = (change) => {
-    if (!change) return 'N/A'
+    if (change === null || change === undefined) return 'N/A'
     return parseFloat(change).toFixed(2)
   }
 
