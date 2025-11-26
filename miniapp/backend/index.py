@@ -123,6 +123,46 @@ async def get_stonfi_usdt_price():
     return None
 
 
+# DeDust pool address on GeckoTerminal
+DEDUST_POOL = "EQA5Svd-50VLKBdAizIASaBFLgWJ11XQbdaeDy4FtTa_ybIt"
+
+
+async def get_dedust_price():
+    """Get HOLDER/TON price from DeDust DEX via GeckoTerminal API"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            url = f"https://api.geckoterminal.com/api/v2/networks/ton/pools/{DEDUST_POOL}"
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    pool_data = data.get('data', {})
+                    attrs = pool_data.get('attributes', {})
+
+                    price_usd = float(attrs.get('base_token_price_usd', 0))
+                    price_ton = float(attrs.get('base_token_price_native_currency', 0))
+                    volume_24h_usd = float(attrs.get('volume_usd', {}).get('h24', 0))
+                    reserve_usd = float(attrs.get('reserve_in_usd', 0))
+                    price_change_24h = float(attrs.get('price_change_percentage', {}).get('h24', 0))
+
+                    return {
+                        'source': 'dedust_dex',
+                        'pair': 'HOLDER/TON',
+                        'price': price_ton,
+                        'price_usd': price_usd,
+                        'change_24h': price_change_24h,
+                        'volume_24h': volume_24h_usd,
+                        'high_24h': price_usd,
+                        'low_24h': price_usd,
+                        'timestamp': datetime.now().isoformat(),
+                        'liquidity_usd': reserve_usd
+                    }
+                else:
+                    logger.error(f"GeckoTerminal API returned status {response.status}")
+    except Exception as e:
+        logger.error(f"Error fetching DeDust price: {e}")
+    return None
+
+
 async def _get_session():
     """Get or create persistent aiohttp session"""
     global _session
@@ -232,9 +272,10 @@ async def get_price():
     try:
         # Fetch all prices in parallel
         import asyncio
-        dex_ton, dex_usdt, cex = await asyncio.gather(
+        dex_ton, dex_usdt, dedust, cex = await asyncio.gather(
             get_stonfi_price(),
             get_stonfi_usdt_price(),
+            get_dedust_price(),
             get_origami_price(),
             return_exceptions=True
         )
@@ -244,6 +285,8 @@ async def get_price():
             prices['dex_ton'] = dex_ton
         if dex_usdt and not isinstance(dex_usdt, Exception):
             prices['dex_usdt'] = dex_usdt
+        if dedust and not isinstance(dedust, Exception):
+            prices['dedust'] = dedust
         if cex and not isinstance(cex, Exception):
             prices['cex'] = cex
 
