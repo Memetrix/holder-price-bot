@@ -142,15 +142,30 @@ async def get_stonfi_price():
                     price_ton = float(attrs.get('base_token_price_native_currency', 0))
                     volume_24h_usd = float(attrs.get('volume_usd', {}).get('h24', 0))
                     reserve_usd = float(attrs.get('reserve_in_usd', 0))
-                    price_change_24h = float(attrs.get('price_change_percentage', {}).get('h24', 0))
+
+                    # Price changes for different periods
+                    price_changes = attrs.get('price_change_percentage', {})
+                    change_1h = float(price_changes.get('h1', 0))
+                    change_6h = float(price_changes.get('h6', 0))
+                    change_24h = float(price_changes.get('h24', 0))
+
+                    # Transaction stats
+                    txns = attrs.get('transactions', {}).get('h24', {})
+                    buys_24h = int(txns.get('buys', 0))
+                    sells_24h = int(txns.get('sells', 0))
 
                     return {
                         'source': 'stonfi_dex',
                         'pair': 'HOLDER/TON',
                         'price': price_ton,
                         'price_usd': price_usd,
-                        'change_24h': price_change_24h,
+                        'change_1h': change_1h,
+                        'change_6h': change_6h,
+                        'change_24h': change_24h,
                         'volume_24h': volume_24h_usd,
+                        'buys_24h': buys_24h,
+                        'sells_24h': sells_24h,
+                        'txns_24h': buys_24h + sells_24h,
                         'high_24h': price_usd,
                         'low_24h': price_usd,
                         'timestamp': datetime.now().isoformat(),
@@ -177,15 +192,30 @@ async def get_stonfi_usdt_price():
                     price_usd = float(attrs.get('base_token_price_usd', 0))
                     volume_24h_usd = float(attrs.get('volume_usd', {}).get('h24', 0))
                     reserve_usd = float(attrs.get('reserve_in_usd', 0))
-                    price_change_24h = float(attrs.get('price_change_percentage', {}).get('h24', 0))
+
+                    # Price changes for different periods
+                    price_changes = attrs.get('price_change_percentage', {})
+                    change_1h = float(price_changes.get('h1', 0))
+                    change_6h = float(price_changes.get('h6', 0))
+                    change_24h = float(price_changes.get('h24', 0))
+
+                    # Transaction stats
+                    txns = attrs.get('transactions', {}).get('h24', {})
+                    buys_24h = int(txns.get('buys', 0))
+                    sells_24h = int(txns.get('sells', 0))
 
                     return {
                         'source': 'stonfi_dex_usdt',
                         'pair': 'HOLDER/USDT',
                         'price': price_usd,
                         'price_usd': price_usd,
-                        'change_24h': price_change_24h,
+                        'change_1h': change_1h,
+                        'change_6h': change_6h,
+                        'change_24h': change_24h,
                         'volume_24h': volume_24h_usd,
+                        'buys_24h': buys_24h,
+                        'sells_24h': sells_24h,
+                        'txns_24h': buys_24h + sells_24h,
                         'high_24h': price_usd,
                         'low_24h': price_usd,
                         'timestamp': datetime.now().isoformat(),
@@ -213,22 +243,37 @@ async def get_dedust_price():
                     price_ton = float(attrs.get('base_token_price_native_currency', 0))
                     volume_24h_usd = float(attrs.get('volume_usd', {}).get('h24', 0))
                     reserve_usd = float(attrs.get('reserve_in_usd', 0))
-                    price_change_24h = float(attrs.get('price_change_percentage', {}).get('h24', 0))
+
+                    # Price changes for different periods
+                    price_changes = attrs.get('price_change_percentage', {})
+                    change_1h = float(price_changes.get('h1', 0))
+                    change_6h = float(price_changes.get('h6', 0))
+                    change_24h = float(price_changes.get('h24', 0))
+
+                    # Transaction stats
+                    txns = attrs.get('transactions', {}).get('h24', {})
+                    buys_24h = int(txns.get('buys', 0))
+                    sells_24h = int(txns.get('sells', 0))
 
                     return {
                         'source': 'dedust_dex',
                         'pair': 'HOLDER/TON',
                         'price': price_ton,
                         'price_usd': price_usd,
-                        'change_24h': price_change_24h,
+                        'change_1h': change_1h,
+                        'change_6h': change_6h,
+                        'change_24h': change_24h,
                         'volume_24h': volume_24h_usd,
+                        'buys_24h': buys_24h,
+                        'sells_24h': sells_24h,
+                        'txns_24h': buys_24h + sells_24h,
                         'high_24h': price_usd,
                         'low_24h': price_usd,
                         'timestamp': datetime.now().isoformat(),
                         'liquidity_usd': reserve_usd
                     }
                 else:
-                    logger.error(f"GeckoTerminal API returned status {response.status}")
+                    logger.error(f"GeckoTerminal DeDust API returned status {response.status}")
     except Exception as e:
         logger.error(f"Error fetching DeDust price: {e}")
     return None
