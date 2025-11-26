@@ -1,8 +1,8 @@
-"""Vercel serverless entry point - simplified version without DB"""
+"""Vercel serverless entry point - with PostgreSQL DB support"""
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timedelta
+from typing import Optional, List, Dict
 import aiohttp
 import asyncio
 import logging
@@ -11,6 +11,86 @@ import os
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Database connection
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+
+def get_db_connection():
+    """Get PostgreSQL database connection."""
+    if not DATABASE_URL:
+        logger.warning("DATABASE_URL not set, history will use mock data")
+        return None
+    try:
+        import psycopg2
+        # Handle Render's postgres:// vs postgresql:// URL
+        db_url = DATABASE_URL
+        if db_url.startswith('postgres://'):
+            db_url = db_url.replace('postgres://', 'postgresql://', 1)
+        conn = psycopg2.connect(db_url)
+        return conn
+    except Exception as e:
+        logger.error(f"Failed to connect to database: {e}")
+        return None
+
+
+async def get_price_history_from_db(source: str = None, hours: int = 24, limit: int = 1000) -> List[Dict]:
+    """Get price history from PostgreSQL database."""
+    conn = get_db_connection()
+    if not conn:
+        return []
+
+    try:
+        cursor = conn.cursor()
+
+        # Build query based on source filter
+        if source:
+            query = """
+                SELECT id, source, pair, price, price_usd, volume_24h, high_24h, low_24h,
+                       change_24h, liquidity_usd, timestamp, created_at
+                FROM price_history
+                WHERE source = %s AND timestamp >= NOW() - INTERVAL '%s hours'
+                ORDER BY timestamp DESC
+                LIMIT %s
+            """
+            cursor.execute(query, (source, hours, limit))
+        else:
+            query = """
+                SELECT id, source, pair, price, price_usd, volume_24h, high_24h, low_24h,
+                       change_24h, liquidity_usd, timestamp, created_at
+                FROM price_history
+                WHERE timestamp >= NOW() - INTERVAL '%s hours'
+                ORDER BY timestamp DESC
+                LIMIT %s
+            """
+            cursor.execute(query, (hours, limit))
+
+        columns = ['id', 'source', 'pair', 'price', 'price_usd', 'volume_24h', 'high_24h',
+                   'low_24h', 'change_24h', 'liquidity_usd', 'timestamp', 'created_at']
+
+        results = []
+        for row in cursor.fetchall():
+            record = dict(zip(columns, row))
+            # Convert datetime to ISO string
+            if record.get('timestamp'):
+                record['timestamp'] = record['timestamp'].isoformat()
+            if record.get('created_at'):
+                record['created_at'] = record['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+            # Convert Decimal to float
+            for key in ['price', 'price_usd', 'volume_24h', 'high_24h', 'low_24h', 'change_24h', 'liquidity_usd']:
+                if record.get(key) is not None:
+                    record[key] = float(record[key])
+            results.append(record)
+
+        cursor.close()
+        conn.close()
+        return results
+
+    except Exception as e:
+        logger.error(f"Error fetching price history: {e}")
+        if conn:
+            conn.close()
+        return []
 
 # CORS configuration
 ALLOWED_ORIGINS = os.getenv(
@@ -392,89 +472,51 @@ async def get_arbitrage():
 @app.get("/api/history")
 async def get_history(source: str = None, hours: int = 24, limit: int = 1000):
     """
-    Generate mock historical data for demo purposes.
-    In production, this would come from a database.
+    Get historical price data from PostgreSQL database.
+    Falls back to empty response if DB is not available.
     """
-    import random
-    from datetime import timedelta
-
     try:
-        # Get current price to base mock data on
-        price_data = await get_price()
-        if not price_data or not price_data.get('data'):
+        # Map frontend source names to DB source names
+        source_mapping = {
+            'dex_ton': 'stonfi_dex',
+            'dex_usdt': 'stonfi_dex_usdt',
+            'dedust': 'dedust_dex',
+            'cex': 'weex_cex',
+            # Also support direct DB source names
+            'stonfi_dex': 'stonfi_dex',
+            'stonfi_dex_usdt': 'stonfi_dex_usdt',
+            'dedust_dex': 'dedust_dex',
+            'weex_cex': 'weex_cex',
+        }
+
+        db_source = source_mapping.get(source, source) if source else None
+        logger.info(f"Fetching history: source={source} -> db_source={db_source}, hours={hours}, limit={limit}")
+
+        # Try to get real data from database
+        history = await get_price_history_from_db(source=db_source, hours=hours, limit=limit)
+
+        if history:
+            logger.info(f"Got {len(history)} records from database")
             return {
                 "success": True,
-                "data": [],
-                "count": 0,
+                "data": history,
+                "count": len(history),
+                "source": "database",
                 "timestamp": datetime.now().isoformat()
             }
 
-        # Determine which source to use
-        data_sources = price_data.get('data', {})
-        logger.info(f"Available sources: {list(data_sources.keys())}, requested: {source}")
-
-        if source:
-            if source not in data_sources:
-                return {
-                    "success": True,
-                    "data": [],
-                    "count": 0,
-                    "timestamp": datetime.now().isoformat()
-                }
-            source_data = data_sources[source]
-            base_price = source_data.get('price_usd') if source_data.get('price_usd') is not None else source_data.get('price')
-            source_name = source
-        else:
-            # Default to CEX if available, otherwise first available
-            if 'cex' in data_sources:
-                base_price = data_sources['cex'].get('price_usd')
-                source_name = 'cex'
-            else:
-                source_name = list(data_sources.keys())[0]
-                source_data = data_sources[source_name]
-                base_price = source_data.get('price_usd') if source_data.get('price_usd') is not None else source_data.get('price')
-
-        # Generate mock historical data
-        history = []
-        now = datetime.now()
-        points = min(limit, 500)  # Limit to 500 points
-
-        # Calculate time interval between points
-        time_delta = timedelta(hours=hours) / points
-
-        # Generate data points with realistic price variation
-        for i in range(points):
-            timestamp = now - timedelta(hours=hours) + (time_delta * i)
-
-            # Add some realistic variation (±5% from base price)
-            variation = random.uniform(-0.05, 0.05)
-            price = base_price * (1 + variation)
-
-            # Generate OHLC data for candlestick
-            high = price * random.uniform(1.0, 1.02)
-            low = price * random.uniform(0.98, 1.0)
-
-            history.append({
-                'source': source_name,
-                'pair': data_sources[source_name].get('pair', 'HOLDER/USDT'),
-                'price': price,
-                'price_usd': price,
-                'high_24h': high,
-                'low_24h': low,
-                'volume_24h': random.uniform(100, 300),
-                'timestamp': timestamp.isoformat(),
-                'created_at': timestamp.strftime('%Y-%m-%d %H:%M:%S')
-            })
-
+        # No data from DB
+        logger.warning(f"No data from database for source={db_source}")
         return {
             "success": True,
-            "data": history,
-            "count": len(history),
+            "data": [],
+            "count": 0,
+            "source": "database",
             "timestamp": datetime.now().isoformat()
         }
 
     except Exception as e:
-        logger.error(f"Error generating history: {e}", exc_info=True)
+        logger.error(f"Error fetching history: {e}", exc_info=True)
         return {
             "success": False,
             "error": str(e),
