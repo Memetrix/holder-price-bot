@@ -114,10 +114,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Constants
-HOLDER_CONTRACT = "EQCDuRLTylau8yKEkx1AMLpHAy6Vog_5D6aC4HNkyG8JN-me"
-TON_CONTRACT = "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"
-USDT_CONTRACT = "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs"
+# GeckoTerminal Pool Addresses
+STONFI_TON_POOL = "EQBFfO1KN9KFXOkcURnYTm3q76Rg6yF63fOGh60hWF7e35MW"   # STON.fi HOLDER/TON
+STONFI_USDT_POOL = "EQB7QzomEu1neLq4jvE89hFBX6bigCgRqvKLjZKJRPASgdSY"  # STON.fi HOLDER/USDT
+DEDUST_POOL = "EQA5Svd-50VLKBdAizIASaBFLgWJ11XQbdaeDy4FtTa_ybIt"       # DeDust HOLDER/TON
 
 # Cache for Origami API (to avoid rate limiting)
 _origami_cache = {"data": None, "timestamp": None}
@@ -128,83 +128,74 @@ _session: Optional[aiohttp.ClientSession] = None
 
 
 async def get_stonfi_price():
-    """Get HOLDER/TON price from STON.fi"""
+    """Get HOLDER/TON price from STON.fi via GeckoTerminal API"""
     try:
         async with aiohttp.ClientSession() as session:
-            pool_url = f"https://api.ston.fi/v1/pools/by_market/{HOLDER_CONTRACT}/{TON_CONTRACT}"
-            async with session.get(pool_url) as response:
+            url = f"https://api.geckoterminal.com/api/v2/networks/ton/pools/{STONFI_TON_POOL}"
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as response:
                 if response.status == 200:
                     data = await response.json()
-                    pool_list = data.get('pool_list', [])
+                    pool_data = data.get('data', {})
+                    attrs = pool_data.get('attributes', {})
 
-                    if pool_list and len(pool_list) > 0:
-                        pool = pool_list[0]
-                        reserve0 = float(pool.get('reserve0', 0))  # TON (9 decimals)
-                        reserve1 = float(pool.get('reserve1', 0))  # HOLDER (9 decimals)
+                    price_usd = float(attrs.get('base_token_price_usd', 0))
+                    price_ton = float(attrs.get('base_token_price_native_currency', 0))
+                    volume_24h_usd = float(attrs.get('volume_usd', {}).get('h24', 0))
+                    reserve_usd = float(attrs.get('reserve_in_usd', 0))
+                    price_change_24h = float(attrs.get('price_change_percentage', {}).get('h24', 0))
 
-                        # Normalize decimals: both TON and HOLDER have 9 decimals
-                        reserve0_normalized = reserve0 / (10 ** 9)
-                        reserve1_normalized = reserve1 / (10 ** 9)
-
-                        price_in_ton = (reserve0_normalized / reserve1_normalized) if reserve1_normalized > 0 else 0
-                        volume_24h = float(pool.get('volume_24h_usd', 0))
-
-                        return {
-                            'source': 'stonfi_dex',
-                            'pair': 'HOLDER/TON',
-                            'price': price_in_ton,
-                            'price_usd': None,
-                            'volume_24h': volume_24h,
-                            'high_24h': price_in_ton,
-                            'low_24h': price_in_ton,
-                            'change_24h': 0,
-                            'timestamp': datetime.now().isoformat()
-                        }
+                    return {
+                        'source': 'stonfi_dex',
+                        'pair': 'HOLDER/TON',
+                        'price': price_ton,
+                        'price_usd': price_usd,
+                        'change_24h': price_change_24h,
+                        'volume_24h': volume_24h_usd,
+                        'high_24h': price_usd,
+                        'low_24h': price_usd,
+                        'timestamp': datetime.now().isoformat(),
+                        'liquidity_usd': reserve_usd
+                    }
+                else:
+                    logger.error(f"GeckoTerminal STON.fi TON API returned status {response.status}")
     except Exception as e:
-        logger.error(f"Error fetching STON.fi price: {e}")
+        logger.error(f"Error fetching STON.fi TON price: {e}")
     return None
 
 
 async def get_stonfi_usdt_price():
-    """Get HOLDER/USDT price from STON.fi"""
+    """Get HOLDER/USDT price from STON.fi via GeckoTerminal API"""
     try:
         async with aiohttp.ClientSession() as session:
-            pool_url = f"https://api.ston.fi/v1/pools/by_market/{HOLDER_CONTRACT}/{USDT_CONTRACT}"
-            async with session.get(pool_url) as response:
+            url = f"https://api.geckoterminal.com/api/v2/networks/ton/pools/{STONFI_USDT_POOL}"
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as response:
                 if response.status == 200:
                     data = await response.json()
-                    pool_list = data.get('pool_list', [])
+                    pool_data = data.get('data', {})
+                    attrs = pool_data.get('attributes', {})
 
-                    if pool_list and len(pool_list) > 0:
-                        pool = pool_list[0]
-                        reserve0 = float(pool.get('reserve0', 0))  # USDT (6 decimals)
-                        reserve1 = float(pool.get('reserve1', 0))  # HOLDER (9 decimals)
+                    price_usd = float(attrs.get('base_token_price_usd', 0))
+                    volume_24h_usd = float(attrs.get('volume_usd', {}).get('h24', 0))
+                    reserve_usd = float(attrs.get('reserve_in_usd', 0))
+                    price_change_24h = float(attrs.get('price_change_percentage', {}).get('h24', 0))
 
-                        # Normalize decimals: USDT has 6 decimals, HOLDER has 9
-                        reserve0_normalized = reserve0 / (10 ** 6)
-                        reserve1_normalized = reserve1 / (10 ** 9)
-
-                        price = (reserve0_normalized / reserve1_normalized) if reserve1_normalized > 0 else 0
-                        volume_24h = float(pool.get('volume_24h_usd', 0))
-
-                        return {
-                            'source': 'stonfi_dex_usdt',
-                            'pair': 'HOLDER/USDT',
-                            'price': price,
-                            'price_usd': price,
-                            'volume_24h': volume_24h,
-                            'high_24h': price,
-                            'low_24h': price,
-                            'change_24h': 0,
-                            'timestamp': datetime.now().isoformat()
-                        }
+                    return {
+                        'source': 'stonfi_dex_usdt',
+                        'pair': 'HOLDER/USDT',
+                        'price': price_usd,
+                        'price_usd': price_usd,
+                        'change_24h': price_change_24h,
+                        'volume_24h': volume_24h_usd,
+                        'high_24h': price_usd,
+                        'low_24h': price_usd,
+                        'timestamp': datetime.now().isoformat(),
+                        'liquidity_usd': reserve_usd
+                    }
+                else:
+                    logger.error(f"GeckoTerminal STON.fi USDT API returned status {response.status}")
     except Exception as e:
         logger.error(f"Error fetching STON.fi USDT price: {e}")
     return None
-
-
-# DeDust pool address on GeckoTerminal
-DEDUST_POOL = "EQA5Svd-50VLKBdAizIASaBFLgWJ11XQbdaeDy4FtTa_ybIt"
 
 
 async def get_dedust_price():
