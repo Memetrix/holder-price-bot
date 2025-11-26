@@ -87,6 +87,7 @@ async def price_broadcast_task():
             # This avoids rate limiting - we use data collected by the bot
             history_dex_ton = await db.get_price_history(source='stonfi_dex', hours=1, limit=1)
             history_dex_usdt = await db.get_price_history(source='stonfi_dex_usdt', hours=1, limit=1)
+            history_dedust = await db.get_price_history(source='dedust_dex', hours=1, limit=1)
             history_cex = await db.get_price_history(source='weex_cex', hours=1, limit=1)
 
             prices = {}
@@ -94,6 +95,8 @@ async def price_broadcast_task():
                 prices['dex_ton'] = history_dex_ton[0]
             if history_dex_usdt:
                 prices['dex_usdt'] = history_dex_usdt[0]
+            if history_dedust:
+                prices['dedust'] = history_dedust[0]
             if history_cex:
                 prices['cex'] = history_cex[0]
 
@@ -136,15 +139,18 @@ async def get_price():
         # Get latest prices from database (avoids rate limiting)
         history_dex_ton = await db.get_price_history(source='stonfi_dex', hours=24, limit=1)
         history_dex_usdt = await db.get_price_history(source='stonfi_dex_usdt', hours=24, limit=1)
+        history_dedust = await db.get_price_history(source='dedust_dex', hours=24, limit=1)
         history_cex = await db.get_price_history(source='weex_cex', hours=24, limit=1)
 
-        logger.info(f"DB query results - dex_ton: {len(history_dex_ton) if history_dex_ton else 0}, dex_usdt: {len(history_dex_usdt) if history_dex_usdt else 0}, cex: {len(history_cex) if history_cex else 0}")
+        logger.info(f"DB query results - dex_ton: {len(history_dex_ton) if history_dex_ton else 0}, dex_usdt: {len(history_dex_usdt) if history_dex_usdt else 0}, dedust: {len(history_dedust) if history_dedust else 0}, cex: {len(history_cex) if history_cex else 0}")
 
         prices = {}
         if history_dex_ton and len(history_dex_ton) > 0:
             prices['dex_ton'] = history_dex_ton[0]
         if history_dex_usdt and len(history_dex_usdt) > 0:
             prices['dex_usdt'] = history_dex_usdt[0]
+        if history_dedust and len(history_dedust) > 0:
+            prices['dedust'] = history_dedust[0]
         if history_cex and len(history_cex) > 0:
             prices['cex'] = history_cex[0]
 
@@ -236,6 +242,7 @@ async def websocket_endpoint(websocket: WebSocket):
         # Send initial price data from database
         history_dex_ton = await db.get_price_history(source='stonfi_dex', hours=1, limit=1)
         history_dex_usdt = await db.get_price_history(source='stonfi_dex_usdt', hours=1, limit=1)
+        history_dedust = await db.get_price_history(source='dedust_dex', hours=1, limit=1)
         history_cex = await db.get_price_history(source='weex_cex', hours=1, limit=1)
 
         prices = {}
@@ -243,6 +250,8 @@ async def websocket_endpoint(websocket: WebSocket):
             prices['dex_ton'] = history_dex_ton[0]
         if history_dex_usdt:
             prices['dex_usdt'] = history_dex_usdt[0]
+        if history_dedust:
+            prices['dedust'] = history_dedust[0]
         if history_cex:
             prices['cex'] = history_cex[0]
 
